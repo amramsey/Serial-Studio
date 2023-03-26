@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021 Alex Spataru <https://github.com/alex-spataru>
+ * Copyright (c) 2020-2023 Alex Spataru <https://github.com/alex-spataru>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -44,8 +44,15 @@ Q_SIGNALS:
     void consoleClicked();
     void dashboardClicked();
 
+private:
+    explicit MacExtras();
+    MacExtras(MacExtras &&) = delete;
+    MacExtras(const MacExtras &) = delete;
+    MacExtras &operator=(MacExtras &&) = delete;
+    MacExtras &operator=(const MacExtras &) = delete;
+
 public:
-    static MacExtras *getInstance();
+    static MacExtras &instance();
 
 public Q_SLOTS:
     void setSetupChecked(const bool checked);
@@ -55,9 +62,6 @@ public Q_SLOTS:
 
 private Q_SLOTS:
     void updateButtonText();
-
-private:
-    MacExtras();
 
 private:
     QAction m_setupAction;

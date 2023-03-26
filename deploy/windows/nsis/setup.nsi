@@ -1,5 +1,5 @@
 ;
-; Copyright (c) 2020-2021 Alex Spataru <https://github.com/alex-spataru>
+; Copyright (c) 2020-2023 Alex Spataru <https://github.com/alex-spataru>
 ;
 ; Permission is hereby granted, free of charge, to any person obtaining a copy
 ; of this software and associated documentation files (the "Software"), to deal
@@ -29,10 +29,10 @@ Unicode True
 !define APPNAME                      "Serial Studio"
 !define EXECNAME                     "SerialStudio"
 !define COMPANYNAME                  "Alex Spataru"
-!define DESCRIPTION                  "Dashboard software for serial port devices"
-!define VERSIONMAJOR                 1
-!define VERSIONMINOR                 1
-!define VERSIONBUILD                 5
+!define DESCRIPTION                  "Multi-purpose data visualization & processing program"
+!define VERSIONMAJOR                 2
+!define VERSIONMINOR                 0
+!define VERSIONBUILD                 0
 !define MUI_ABORTWARNING
 !define INSTALL_DIR                  "$PROGRAMFILES64\${APPNAME}"
 !define MUI_FINISHPAGE_RUN
@@ -92,7 +92,6 @@ Section "${APPNAME} (required)" SecDummy
   ${GetSize} "$INSTDIR" "/S=0K" $0 $1 $2
   IntFmt $0 "0x%08X" $0
 
-  DeleteRegKey HKCU "Software\${COMPANYNAME}\${APPNAME}"
   DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${COMPANYNAME} ${APPNAME}"
 
   WriteUninstaller "$INSTDIR\uninstall.exe"

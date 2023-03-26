@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021 Alex Spataru <https://github.com/alex-spataru>
+ * Copyright (c) 2020-2023 Alex Spataru <https://github.com/alex-spataru>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -20,10 +20,6 @@
  * THE SOFTWARE.
  */
 
-#include "AppInfo.h"
-#include "Utilities.h"
-#include "ThemeManager.h"
-
 #include <QDir>
 #include <QFile>
 #include <QPalette>
@@ -33,37 +29,51 @@
 #include <QApplication>
 #include <QJsonDocument>
 
-namespace Misc
-{
-static ThemeManager *THEME_MANAGER = Q_NULLPTR;
+#include <AppInfo.h>
+#include <Misc/Utilities.h>
+#include <Misc/ThemeManager.h>
 
 /**
  * Constructor function, searches for available themes & loads
  * the theme variant selected by the user.
  */
-ThemeManager::ThemeManager()
+Misc::ThemeManager::ThemeManager()
 {
     populateThemes();
     loadTheme(m_settings.value("themeId", 0).toInt());
+
+#if QT_VERSION < QT_VERSION_CHECK(5, 12, 0)
+    setCustomWindowDecorations(m_settings.value("customWindows", false).toBool());
+#else
+    setCustomWindowDecorations(m_settings.value("customWindows", true).toBool());
+#endif
 }
 
 /**
  * Returns a pointer to the only instance of this class
  */
-ThemeManager *ThemeManager::getInstance()
+Misc::ThemeManager &Misc::ThemeManager::instance()
 {
-    if (!THEME_MANAGER)
-        THEME_MANAGER = new ThemeManager;
-
-    return THEME_MANAGER;
+    static ThemeManager singleton;
+    return singleton;
 }
 
 /**
  * Returns the ID of the theme that the user has selected.
  */
-int ThemeManager::themeId() const
+int Misc::ThemeManager::themeId() const
 {
     return m_themeId;
+}
+
+/**
+ * Returns @c true if the application should draw the window decorations & controls by
+ * itself. This feature makes it look cooler, but it can lead to some trouble on
+ * not-so-common desktop environments, such as CDE.
+ */
+bool Misc::ThemeManager::customWindowDecorations() const
+{
+    return m_customWindowDecorations;
 }
 
 /**
@@ -76,7 +86,7 @@ int ThemeManager::themeId() const
  * Unfortunately, an app restart is required because the application
  * palette must be set before the GUI is initialized.
  */
-void ThemeManager::setTheme(const int id)
+void Misc::ThemeManager::setTheme(const int id)
 {
     // Validate theme ID
     if (id >= m_availableThemesPaths.count())
@@ -100,11 +110,22 @@ void ThemeManager::setTheme(const int id)
 }
 
 /**
+ * Enables/disables the custom window feature. See the @c customWindowDecorations()
+ * function for more information.
+ */
+void Misc::ThemeManager::setCustomWindowDecorations(const bool enabled)
+{
+    m_customWindowDecorations = enabled;
+    m_settings.setValue("customWindows", enabled);
+    Q_EMIT customWindowDecorationsChanged();
+}
+
+/**
  * Parses the JSON theme definition file for the given theme ID.
  * The colors are then "extracted" from the JSON file & loaded into the
  * class, which is later used to set the colors of the QML user interface.
  */
-void ThemeManager::loadTheme(const int id)
+void Misc::ThemeManager::loadTheme(const int id)
 {
     // Validate theme ID
     if (id >= m_availableThemesPaths.count())
@@ -116,7 +137,7 @@ void ThemeManager::loadTheme(const int id)
         return;
 
     // Read theme data into JSON
-    const auto document = QJsonDocument::fromJson(file.readAll());
+    auto document = QJsonDocument::fromJson(file.readAll());
     if (document.isEmpty())
         return;
 
@@ -133,6 +154,7 @@ void ThemeManager::loadTheme(const int id)
     m_button = QColor(colors.value("button").toString());
     m_window = QColor(colors.value("window").toString());
     m_text = QColor(colors.value("text").toString());
+    m_border = QColor(colors.value("border").toString());
     m_midlight = QColor(colors.value("midlight").toString());
     m_highlight = QColor(colors.value("highlight").toString());
     m_brightText = QColor(colors.value("brightText").toString());
@@ -212,7 +234,7 @@ void ThemeManager::loadTheme(const int id)
  * folder.
  * @note theme definitions are bundled during the compilatopn process.
  */
-void ThemeManager::populateThemes()
+void Misc::ThemeManager::populateThemes()
 {
     // Clear available thems
     m_availableThemes.clear();
@@ -227,11 +249,11 @@ void ThemeManager::populateThemes()
         QFile file(QString(":/themes/%1").arg(themeList.at(i)));
         if (file.open(QFile::ReadOnly))
         {
-            const auto data = file.readAll();
+            auto data = file.readAll();
             file.close();
 
-            const auto document = QJsonDocument::fromJson(data);
-            const auto name = document.object().value("name").toString();
+            auto document = QJsonDocument::fromJson(data);
+            auto name = document.object().value("name").toString();
             if (!name.isEmpty())
             {
                 m_availableThemes.append(name);
@@ -248,248 +270,256 @@ void ThemeManager::populateThemes()
 // Dumb access functions
 //----------------------------------------------------------------------------------------
 
-bool ThemeManager::titlebarSeparator() const
+bool Misc::ThemeManager::titlebarSeparator() const
 {
     return m_titlebarSeparator;
 }
 
-QColor ThemeManager::base() const
+QColor Misc::ThemeManager::base() const
 {
     return m_base;
 }
 
-QColor ThemeManager::link() const
+QColor Misc::ThemeManager::link() const
 {
     return m_link;
 }
 
-QColor ThemeManager::button() const
+QColor Misc::ThemeManager::button() const
 {
     return m_button;
 }
 
-QColor ThemeManager::window() const
+QColor Misc::ThemeManager::window() const
 {
     return m_window;
 }
 
-QColor ThemeManager::text() const
+QColor Misc::ThemeManager::text() const
 {
     return m_text;
 }
 
-QColor ThemeManager::midlight() const
+QColor Misc::ThemeManager::border() const
+{
+    return m_border;
+}
+
+QColor Misc::ThemeManager::midlight() const
 {
     return m_midlight;
 }
 
-QColor ThemeManager::highlight() const
+QColor Misc::ThemeManager::highlight() const
 {
     return m_highlight;
 }
 
-QColor ThemeManager::brightText() const
+QColor Misc::ThemeManager::brightText() const
 {
     return m_brightText;
 }
 
-QColor ThemeManager::buttonText() const
+QColor Misc::ThemeManager::buttonText() const
 {
     return m_buttonText;
 }
 
-QColor ThemeManager::windowText() const
+QColor Misc::ThemeManager::windowText() const
 {
     return m_windowText;
 }
 
-QColor ThemeManager::tooltipText() const
+QColor Misc::ThemeManager::tooltipText() const
 {
     return m_tooltipText;
 }
 
-QColor ThemeManager::tooltipBase() const
+QColor Misc::ThemeManager::tooltipBase() const
 {
     return m_tooltipBase;
 }
 
-QColor ThemeManager::highlightedText() const
+QColor Misc::ThemeManager::highlightedText() const
 {
     return m_highlightedText;
 }
 
-QColor ThemeManager::highlightedTextAlternative() const
+QColor Misc::ThemeManager::highlightedTextAlternative() const
 {
     return m_highlightedTextAlternative;
 }
 
-QColor ThemeManager::placeholderText() const
+QColor Misc::ThemeManager::placeholderText() const
 {
     return m_placeholderText;
 }
 
-QColor ThemeManager::toolbarGradient1() const
+QColor Misc::ThemeManager::toolbarGradient1() const
 {
     return m_toolbarGradient1;
 }
 
-QColor ThemeManager::toolbarGradient2() const
+QColor Misc::ThemeManager::toolbarGradient2() const
 {
     return m_toolbarGradient2;
 }
 
-QColor ThemeManager::menubarText() const
+QColor Misc::ThemeManager::menubarText() const
 {
     return m_menubarText;
 }
 
-QColor ThemeManager::dialogBackground() const
+QColor Misc::ThemeManager::dialogBackground() const
 {
     return m_dialogBackground;
 }
 
-QColor ThemeManager::consoleText() const
+QColor Misc::ThemeManager::consoleText() const
 {
     return m_consoleText;
 }
 
-QColor ThemeManager::consoleBase() const
+QColor Misc::ThemeManager::consoleBase() const
 {
     return m_consoleBase;
 }
 
-QColor ThemeManager::consoleButton() const
+QColor Misc::ThemeManager::consoleButton() const
 {
     return m_consoleButton;
 }
 
-QColor ThemeManager::consoleWindow() const
+QColor Misc::ThemeManager::consoleWindow() const
 {
     return m_consoleWindow;
 }
 
-QColor ThemeManager::consoleHighlight() const
+QColor Misc::ThemeManager::consoleHighlight() const
 {
     return m_consoleHighlight;
 }
 
-QColor ThemeManager::consoleHighlightedText() const
+QColor Misc::ThemeManager::consoleHighlightedText() const
 {
     return m_consoleHighlightedText;
 }
 
-QColor ThemeManager::consolePlaceholderText() const
+QColor Misc::ThemeManager::consolePlaceholderText() const
 {
     return m_consolePlaceholderText;
 }
 
-QColor ThemeManager::windowBackground() const
+QColor Misc::ThemeManager::windowBackground() const
 {
     return m_windowBackground;
 }
 
-QColor ThemeManager::windowGradient1() const
+QColor Misc::ThemeManager::windowGradient1() const
 {
     return m_windowGradient1;
 }
 
-QColor ThemeManager::windowGradient2() const
+QColor Misc::ThemeManager::windowGradient2() const
 {
     return m_windowGradient2;
 }
 
-QColor ThemeManager::alternativeHighlight() const
+QColor Misc::ThemeManager::alternativeHighlight() const
 {
     return m_alternativeHighlight;
 }
 
-QColor ThemeManager::setupPanelBackground() const
+QColor Misc::ThemeManager::setupPanelBackground() const
 {
     return m_setupPanelBackground;
 }
 
-QColor ThemeManager::widgetTextPrimary() const
+QColor Misc::ThemeManager::widgetTextPrimary() const
 {
     return m_widgetTextPrimary;
 }
 
-QColor ThemeManager::widgetTextSecondary() const
+QColor Misc::ThemeManager::widgetTextSecondary() const
 {
     return m_widgetTextSecondary;
 }
 
-QColor ThemeManager::widgetWindowBackground() const
+QColor Misc::ThemeManager::widgetWindowBackground() const
 {
     return m_widgetWindowBackground;
 }
 
-QColor ThemeManager::widgetWindowBorder() const
+QColor Misc::ThemeManager::widgetWindowBorder() const
 {
     return m_widgetWindowBorder;
 }
 
-QColor ThemeManager::paneWindowBackground() const
+QColor Misc::ThemeManager::paneWindowBackground() const
 {
     return m_paneWindowBackground;
 }
 
-QColor ThemeManager::ledEnabled() const
+QColor Misc::ThemeManager::ledEnabled() const
 {
     return m_ledEnabled;
 }
 
-QColor ThemeManager::ledDisabled() const
+QColor Misc::ThemeManager::ledDisabled() const
 {
     return m_ledDisabled;
 }
 
-QColor ThemeManager::csvCheckbox() const
+QColor Misc::ThemeManager::csvCheckbox() const
 {
     return m_csvCheckbox;
 }
 
-QColor ThemeManager::widgetForegroundPrimary() const
+QColor Misc::ThemeManager::widgetForegroundPrimary() const
 {
     return m_widgetForegroundPrimary;
 }
 
-QColor ThemeManager::widgetForegroundSecondary() const
+QColor Misc::ThemeManager::widgetForegroundSecondary() const
 {
     return m_widgetForegroundSecondary;
 }
 
-QColor ThemeManager::widgetIndicator() const
+QColor Misc::ThemeManager::widgetIndicator() const
 {
     return m_widgetIndicator;
 }
 
-QColor ThemeManager::widgetControlBackground() const
+QColor Misc::ThemeManager::widgetControlBackground() const
 {
     return m_widgetControlBackground;
 }
 
-QColor ThemeManager::connectButtonChecked() const
+QColor Misc::ThemeManager::connectButtonChecked() const
 {
     return m_connectButtonChecked;
 }
 
-QColor ThemeManager::connectButtonUnchecked() const
+QColor Misc::ThemeManager::connectButtonUnchecked() const
 {
     return m_connectButtonUnchecked;
 }
 
-QColor ThemeManager::mqttButton() const
+QColor Misc::ThemeManager::mqttButton() const
 {
     return m_mqttButton;
 }
 
-StringList ThemeManager::widgetColors() const
+StringList Misc::ThemeManager::widgetColors() const
 {
     return m_widgetColors;
 }
 
-StringList ThemeManager::availableThemes() const
+StringList Misc::ThemeManager::availableThemes() const
 {
     return m_availableThemes;
 }
-}
+
+#ifdef SERIAL_STUDIO_INCLUDE_MOC
+#    include "moc_ThemeManager.cpp"
+#endif

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021 Alex Spataru <https://github.com/alex-spataru>
+ * Copyright (c) 2020-2023 Alex Spataru <https://github.com/alex-spataru>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,40 +22,38 @@
 
 #include "Export.h"
 
-#include <AppInfo.h>
-#include <IO/Manager.h>
-#include <UI/Dashboard.h>
-#include <Misc/Utilities.h>
-#include <Misc/TimerEvents.h>
-
 #include <QDir>
 #include <QUrl>
 #include <QFileInfo>
 #include <QApplication>
 #include <QDesktopServices>
 
-namespace CSV
-{
-static Export *EXPORT = Q_NULLPTR;
+#include <AppInfo.h>
+#include <IO/Manager.h>
+#include <UI/Dashboard.h>
+#include <Project/Model.h>
+#include <Misc/Utilities.h>
+#include <Misc/TimerEvents.h>
 
 /**
  * Connect JSON Parser & Serial Manager signals to begin registering JSON
  * dataframes into JSON list.
  */
-Export::Export()
-    : m_exportEnabled(true)
+CSV::Export::Export()
+    : m_fieldCount(0)
+    , m_exportEnabled(true)
 {
-    const auto io = IO::Manager::getInstance();
-    const auto te = Misc::TimerEvents::getInstance();
+    auto io = &IO::Manager::instance();
+    auto te = &Misc::TimerEvents::instance();
     connect(io, &IO::Manager::connectedChanged, this, &Export::closeFile);
     connect(io, &IO::Manager::frameReceived, this, &Export::registerFrame);
-    connect(te, &Misc::TimerEvents::lowFreqTimeout, this, &Export::writeValues);
+    connect(te, &Misc::TimerEvents::timeout1Hz, this, &Export::writeValues);
 }
 
 /**
  * Close file & finnish write-operations before destroying the class
  */
-Export::~Export()
+CSV::Export::~Export()
 {
     closeFile();
 }
@@ -63,18 +61,16 @@ Export::~Export()
 /**
  * Returns a pointer to the only instance of this class
  */
-Export *Export::getInstance()
+CSV::Export &CSV::Export::instance()
 {
-    if (!EXPORT)
-        EXPORT = new Export;
-
-    return EXPORT;
+    static Export singleton;
+    return singleton;
 }
 
 /**
  * Returns @c true if the CSV output file is open
  */
-bool Export::isOpen() const
+bool CSV::Export::isOpen() const
 {
     return m_csvFile.isOpen();
 }
@@ -82,7 +78,7 @@ bool Export::isOpen() const
 /**
  * Returns @c true if CSV export is enabled
  */
-bool Export::exportEnabled() const
+bool CSV::Export::exportEnabled() const
 {
     return m_exportEnabled;
 }
@@ -90,7 +86,7 @@ bool Export::exportEnabled() const
 /**
  * Open the current CSV file in the Explorer/Finder window
  */
-void Export::openCurrentCsv()
+void CSV::Export::openCurrentCsv()
 {
     if (isOpen())
         Misc::Utilities::revealFile(m_csvFile.fileName());
@@ -102,7 +98,7 @@ void Export::openCurrentCsv()
 /**
  * Enables or disables data export
  */
-void Export::setExportEnabled(const bool enabled)
+void CSV::Export::setExportEnabled(const bool enabled)
 {
     m_exportEnabled = enabled;
     Q_EMIT enabledChanged();
@@ -117,13 +113,14 @@ void Export::setExportEnabled(const bool enabled)
 /**
  * Write all remaining JSON frames & close the CSV file
  */
-void Export::closeFile()
+void CSV::Export::closeFile()
 {
     if (isOpen())
     {
-        while (m_frames.isEmpty())
+        while (!m_frames.isEmpty())
             writeValues();
 
+        m_fieldCount = 0;
         m_csvFile.close();
         m_textStream.setDevice(Q_NULLPTR);
 
@@ -135,13 +132,13 @@ void Export::closeFile()
  * Creates a CSV file based on the JSON frames contained in the JSON list.
  * @note This function is called periodically every 1 second.
  */
-void Export::writeValues()
+void CSV::Export::writeValues()
 {
     // Get separator sequence
-    const auto sep = IO::Manager::getInstance()->separatorSequence();
+    auto sep = IO::Manager::instance().separatorSequence();
 
     // Write each frame
-    for (int i = 0; i < m_frames.count(); ++i)
+    for (auto i = 0; i < m_frames.count(); ++i)
     {
         auto frame = m_frames.at(i);
         auto fields = QString::fromUtf8(frame.data).split(sep);
@@ -154,13 +151,23 @@ void Export::writeValues()
         m_textStream << frame.rxDateTime.toString("yyyy/MM/dd/ HH:mm:ss::zzz") << ",";
 
         // Write frame data
-        for (int j = 0; j < fields.count(); ++j)
+        for (auto j = 0; j < fields.count(); ++j)
         {
             m_textStream << fields.at(j);
             if (j < fields.count() - 1)
                 m_textStream << ",";
+
             else
+            {
+                auto d = m_fieldCount - fields.count();
+                if (d > 0)
+                {
+                    for (auto k = 0; k < d - 1; ++k)
+                        m_textStream << ",";
+                }
+
                 m_textStream << "\n";
+            }
         }
     }
 
@@ -171,10 +178,9 @@ void Export::writeValues()
 /**
  * Creates a new CSV file corresponding to the current project title & field count
  */
-void Export::createCsvFile(const CSV::RawFrame &frame)
-{
-    // Get project title
-    const auto projectTitle = UI::Dashboard::getInstance()->title();
+void CSV::Export::createCsvFile(const CSV::RawFrame &frame)
+{ // Get project title
+    auto projectTitle = UI::Dashboard::instance().title();
 
     // Get file name
     const QString fileName = frame.rxDateTime.toString("HH-mm-ss") + ".csv";
@@ -211,17 +217,30 @@ void Export::createCsvFile(const CSV::RawFrame &frame)
     m_textStream.setEncoding(QStringConverter::Utf8);
 #endif
 
-    // Get number of fields
-    const auto sep = IO::Manager::getInstance()->separatorSequence();
-    const auto fields = QString::fromUtf8(frame.data).split(sep);
+    // Get number of fields by counting datasets with non-duplicated indexes
+    QVector<int> fields;
+    QVector<QString> titles;
+    for (int i = 0; i < Project::Model::instance().groupCount(); ++i)
+    {
+        for (int j = 0; j < Project::Model::instance().datasetCount(i); ++j)
+        {
+            auto dataset = Project::Model::instance().getDataset(i, j);
+            if (!fields.contains(dataset.index()))
+            {
+                fields.append(dataset.index());
+                titles.append(dataset.title());
+            }
+        }
+    }
 
     // Add table titles
+    m_fieldCount = fields.count();
     m_textStream << "RX Date/Time,";
-    for (int j = 0; j < fields.count(); ++j)
+    for (auto i = 0; i < m_fieldCount; ++i)
     {
-        m_textStream << "Field " << j + 1;
+        m_textStream << titles.at(i) << "(field " << i + 1 << ")";
 
-        if (j < fields.count() - 1)
+        if (i < m_fieldCount - 1)
             m_textStream << ",";
         else
             m_textStream << "\n";
@@ -234,11 +253,15 @@ void Export::createCsvFile(const CSV::RawFrame &frame)
 /**
  * Appends the latest data from the device to the output buffer
  */
-void Export::registerFrame(const QByteArray &data)
+void CSV::Export::registerFrame(const QByteArray &data)
 {
     // Ignore if device is not connected (we don't want to generate a CSV file when we
     // are reading another CSV file don't we?)
-    if (!IO::Manager::getInstance()->connected())
+    if (!IO::Manager::instance().connected())
+        return;
+
+    // Ignore if current dashboard frame hasn't been loaded yet
+    if (!UI::Dashboard::instance().currentFrame().isValid())
         return;
 
     // Ignore if CSV export is disabled
@@ -251,4 +274,7 @@ void Export::registerFrame(const QByteArray &data)
     frame.rxDateTime = QDateTime::currentDateTime();
     m_frames.append(frame);
 }
-}
+
+#ifdef SERIAL_STUDIO_INCLUDE_MOC
+#    include "moc_Export.cpp"
+#endif

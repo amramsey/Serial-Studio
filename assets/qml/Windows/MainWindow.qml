@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021 Alex Spataru <https://github.com/alex-spataru>
+ * Copyright (c) 2020-2023 Alex Spataru <https://github.com/alex-spataru>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -20,17 +20,16 @@
  * THE SOFTWARE.
  */
 
-import QtQuick 2.12
-import QtQuick.Window 2.12
-import QtQuick.Layouts 1.12
-import QtQuick.Controls 2.12
-
-import Qt.labs.settings 1.0
+import QtQuick
+import QtQuick.Window
+import QtQuick.Layouts
+import QtQuick.Controls
+import Qt.labs.settings
 
 import "../Panes"
 import "../Windows"
 import "../Widgets"
-import "../JsonEditor"
+import "../ProjectEditor"
 import "../FramelessWindow" as FramelessWindow
 import "../PlatformDependent" as PlatformDependent
 
@@ -95,9 +94,9 @@ FramelessWindow.CustomWindow {
     title: Cpp_AppName
     width: minimumWidth
     height: minimumHeight
-    minimumWidth: 1250 + 2 * root.shadowMargin
+    minimumWidth: 1120 + 2 * root.shadowMargin
     backgroundColor: Cpp_ThemeManager.windowBackground
-    minimumHeight: 720 + 2 * root.shadowMargin + root.titlebar.height
+    minimumHeight: 650 + 2 * root.shadowMargin + root.titlebar.height
 
     //
     // Startup code
@@ -106,7 +105,7 @@ FramelessWindow.CustomWindow {
         // Load welcome text
         terminal.showWelcomeGuide()
 
-        // Increment app launch count & hide splash screen
+        // Increment app launch count
         ++appLaunchCount
 
         // Show app window
@@ -156,11 +155,12 @@ FramelessWindow.CustomWindow {
     //
     Connections {
         target: Cpp_UI_Dashboard
-        enabled: !root.firstValidFrame
 
         function onUpdated()  {
-            if ((Cpp_IO_Manager.connected || Cpp_CSV_Player.isOpen) &&
-                    Cpp_UI_Dashboard.frameValid()) {
+            if (root.firstValidFrame)
+                return
+
+            if ((Cpp_IO_Manager.connected || Cpp_CSV_Player.isOpen) && Cpp_UI_Dashboard.frameValid()) {
                 setup.hide()
                 root.showDashboard()
                 root.firstValidFrame = true
@@ -210,12 +210,24 @@ FramelessWindow.CustomWindow {
     }
 
     //
+    // Rectangle for the menubar (only used if custom window flags are disabled)
+    //
+    Rectangle {
+        color: root.titlebarColor
+        anchors.fill: menubarLayout
+        visible: !Cpp_ThemeManager.customWindowDecorations
+    }
+
+    //
     // Menubar, shown by default on Windows & Linux and when the app is fullscreen
     //
     RowLayout {
+        id: menubarLayout
         z: titlebar.z + 1
         spacing: app.spacing
-        height: titlebar.height
+        height: !showMenubar ? titlebar.height : 38
+
+        readonly property bool showMenubar: !root.showMacControls || isFullscreen
 
         anchors {
             top: parent.top
@@ -229,12 +241,14 @@ FramelessWindow.CustomWindow {
         //
         // Menubar
         //
-        PlatformDependent.Menubar {
-            id: menubar
+        Loader {
             opacity: 0.8
+            asynchronous: false
             Layout.alignment: Qt.AlignVCenter
-            enabled: !root.showMacControls || isFullscreen
-            visible: !root.showMacControls || isFullscreen
+            sourceComponent: PlatformDependent.Menubar {
+                enabled: !root.showMacControls || isFullscreen
+                visible: !root.showMacControls || isFullscreen
+            }
         }
 
         //
@@ -255,7 +269,7 @@ FramelessWindow.CustomWindow {
         palette.text: Cpp_ThemeManager.text
         palette.buttonText: Cpp_ThemeManager.text
         palette.windowText: Cpp_ThemeManager.text
-        anchors.topMargin: titlebar.height + root.shadowMargin
+        anchors.topMargin: menubarLayout.height + root.shadowMargin
 
         background: Rectangle {
             radius: root.radius
@@ -279,7 +293,7 @@ FramelessWindow.CustomWindow {
                 setupChecked: root.setupVisible
                 consoleChecked: root.consoleVisible
                 dashboardChecked: root.dashboardVisible
-                onJsonEditorClicked: app.jsonEditorWindow.show()
+                onProjectEditorClicked: app.projectEditorWindow.show()
                 onSetupClicked: setup.visible ? setup.hide() : setup.show()
 
                 onDashboardClicked: {

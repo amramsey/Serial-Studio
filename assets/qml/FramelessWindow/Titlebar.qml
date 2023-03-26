@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021 Alex Spataru <https://github.com/alex-spataru>
+ * Copyright (c) 2020-2023 Alex Spataru <https://github.com/alex-spataru>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -20,10 +20,10 @@
  * THE SOFTWARE.
  */
 
-import QtQuick 2.12
-import QtQuick.Layouts 1.12
-import QtQuick.Window 2.12
-import QtQuick.Controls 2.12
+import QtQuick
+import QtQuick.Window
+import QtQuick.Layouts
+import QtQuick.Controls
 
 import "../Widgets" as Widgets
 
@@ -160,7 +160,7 @@ Rectangle {
     //
     // Height calculation
     //
-    height: !showMacControls ? 38 : 32
+    height: Cpp_ThemeManager.customWindowDecorations ? (!showMacControls ? 38 : 32) : 0
 
     //
     // Radius compensator rectangle
@@ -176,29 +176,25 @@ Rectangle {
     }
 
     //
-    // Window drag handler
+    // Window drag handler & maximize by double click
     //
     Item {
         anchors.fill: parent
+        enabled: Cpp_ThemeManager.customWindowDecorations
 
-        DragHandler {
-            grabPermissions: TapHandler.CanTakeOverFromAnything
-            onActiveChanged: {
-                if (active)
+        MouseArea {
+            anchors.fill: parent
+            acceptedButtons: Qt.LeftButton
+
+            onDoubleClicked: {
+                if (root.maximizeEnabled)
+                    root.toggleMaximized()
+            }
+
+            onPressedChanged: {
+                if (pressed)
                     window.startSystemMove()
             }
-        }
-    }
-
-    //
-    // Window maximize by double click
-    //
-    MouseArea {
-        anchors.fill: parent
-        acceptedButtons: Qt.LeftButton
-        onDoubleClicked: {
-            if (root.maximizeEnabled)
-                root.toggleMaximized()
         }
     }
 
@@ -207,8 +203,8 @@ Rectangle {
     //
     Item {
         anchors.fill: parent
-        visible: showMacControls
-        enabled: showMacControls
+        visible: showMacControls && Cpp_ThemeManager.customWindowDecorations
+        enabled: showMacControls && Cpp_ThemeManager.customWindowDecorations
 
         RowLayout {
             spacing: 0
@@ -264,8 +260,8 @@ Rectangle {
     //
     Item {
         anchors.fill: parent
-        visible: !showMacControls
-        enabled: !showMacControls
+        visible: !showMacControls && Cpp_ThemeManager.customWindowDecorations
+        enabled: !showMacControls && Cpp_ThemeManager.customWindowDecorations
 
         RowLayout {
             spacing: 0
@@ -279,6 +275,7 @@ Rectangle {
                 visible: root.showIcon
                 enabled: root.showIcon
                 textColor: root.textColor
+                pressedColor: root.textColor
                 Layout.alignment: Qt.AlignVCenter
                 source: "qrc:/images/icon-window.svg"
             }
@@ -337,5 +334,6 @@ Rectangle {
         text: window.title
         color: root.textColor
         anchors.centerIn: parent
+        visible: Cpp_ThemeManager.customWindowDecorations
     }
 }

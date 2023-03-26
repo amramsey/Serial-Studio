@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021 Alex Spataru <https://github.com/alex-spataru>
+ * Copyright (c) 2020-2023 Alex Spataru <https://github.com/alex-spataru>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -20,36 +20,30 @@
  * THE SOFTWARE.
  */
 
-#include "Editor.h"
 #include "Generator.h"
-#include "FrameInfo.h"
+
+#include <QFileInfo>
+#include <QFileDialog>
+#include <QRegularExpression>
+
+#include <Project/Model.h>
+#include <Project/CodeEditor.h>
 
 #include <CSV/Player.h>
 #include <IO/Manager.h>
 #include <MQTT/Client.h>
 #include <Misc/Utilities.h>
 
-#include <QFileInfo>
-#include <QFileDialog>
-#include <QRegularExpression>
-
-namespace JSON
-{
-static Generator *GENERATOR = Q_NULLPTR;
-
 /**
  * Initializes the JSON Parser class and connects appropiate SIGNALS/SLOTS
  */
-Generator::Generator()
-    : m_frameCount(0)
-    , m_opMode(kAutomatic)
-    , m_processInSeparateThread(false)
+JSON::Generator::Generator()
+    : m_opMode(kAutomatic)
 {
-    const auto io = IO::Manager::getInstance();
-    const auto cp = CSV::Player::getInstance();
-    connect(cp, SIGNAL(openChanged()), this, SLOT(reset()));
-    connect(io, SIGNAL(deviceChanged()), this, SLOT(reset()));
-    connect(io, SIGNAL(frameReceived(QByteArray)), this, SLOT(readData(QByteArray)));
+    // clang-format off
+    connect(&IO::Manager::instance(), &IO::Manager::frameReceived,
+            this, &JSON::Generator::readData);
+    // clang-format on
 
     readSettings();
 }
@@ -57,26 +51,24 @@ Generator::Generator()
 /**
  * Returns the only instance of the class
  */
-Generator *Generator::getInstance()
+JSON::Generator &JSON::Generator::instance()
 {
-    if (!GENERATOR)
-        GENERATOR = new Generator();
-
-    return GENERATOR;
+    static Generator singleton;
+    return singleton;
 }
 
 /**
  * Returns the JSON map data from the loaded file as a string
  */
-QString Generator::jsonMapData() const
+QJsonObject &JSON::Generator::json()
 {
-    return m_jsonMapData;
+    return m_json;
 }
 
 /**
  * Returns the file name (e.g. "JsonMap.json") of the loaded JSON map file
  */
-QString Generator::jsonMapFilename() const
+QString JSON::Generator::jsonMapFilename() const
 {
     if (m_jsonMap.isOpen())
     {
@@ -90,7 +82,7 @@ QString Generator::jsonMapFilename() const
 /**
  * Returns the file path of the loaded JSON map file
  */
-QString Generator::jsonMapFilepath() const
+QString JSON::Generator::jsonMapFilepath() const
 {
     if (m_jsonMap.isOpen())
     {
@@ -104,28 +96,20 @@ QString Generator::jsonMapFilepath() const
 /**
  * Returns the operation mode
  */
-Generator::OperationMode Generator::operationMode() const
+JSON::Generator::OperationMode JSON::Generator::operationMode() const
 {
     return m_opMode;
 }
 
 /**
- * Returns @c true if JSON frames shall be generated in a separate thread
- */
-bool Generator::processFramesInSeparateThread() const
-{
-    return m_processInSeparateThread;
-}
-
-/**
  * Creates a file dialog & lets the user select the JSON file map
  */
-void Generator::loadJsonMap()
+void JSON::Generator::loadJsonMap()
 {
     // clang-format off
     auto file = QFileDialog::getOpenFileName(Q_NULLPTR,
                                              tr("Select JSON map file"),
-                                             Editor::getInstance()->jsonProjectsPath(),
+                                             Project::Model::instance().jsonProjectsPath(),
                                              tr("JSON files") + " (*.json)");
     // clang-format on
 
@@ -136,7 +120,7 @@ void Generator::loadJsonMap()
 /**
  * Opens, validates & loads into memory the JSON file in the given @a path.
  */
-void Generator::loadJsonMap(const QString &path)
+void JSON::Generator::loadJsonMap(const QString &path)
 {
     // Validate path
     if (path.isEmpty())
@@ -146,7 +130,7 @@ void Generator::loadJsonMap(const QString &path)
     if (m_jsonMap.isOpen())
     {
         m_jsonMap.close();
-        m_jsonMapData = "";
+        m_json = QJsonObject();
         Q_EMIT jsonFileMapChanged();
     }
 
@@ -165,11 +149,15 @@ void Generator::loadJsonMap(const QString &path)
             Misc::Utilities::showMessageBox(tr("JSON parse error"), error.errorString());
         }
 
-        // JSON contains no errors, load data & save settings
+        // JSON contains no errors, load compacted JSON document & save settings
         else
         {
+            // Save settings
             writeSettings(path);
-            m_jsonMapData = QString::fromUtf8(data);
+
+            // Load compacted JSON document
+            document.object().remove("frameParser");
+            m_json = document.object();
         }
 
         // Get rid of warnings
@@ -179,7 +167,6 @@ void Generator::loadJsonMap(const QString &path)
     // Open error
     else
     {
-        m_jsonMapData = "";
         writeSettings("");
         Misc::Utilities::showMessageBox(tr("Cannot read JSON file"),
                                         tr("Please check file permissions & location"));
@@ -203,25 +190,16 @@ void Generator::loadJsonMap(const QString &path)
  * @c kAutomatic serial data contains the JSON data frame, good for simple
  *               applications or for prototyping.
  */
-void Generator::setOperationMode(const JSON::Generator::OperationMode &mode)
+void JSON::Generator::setOperationMode(const JSON::Generator::OperationMode &mode)
 {
     m_opMode = mode;
     Q_EMIT operationModeChanged();
 }
 
 /**
- * Enables or disables multi-threaded frame processing
- */
-void Generator::setProcessFramesInSeparateThread(const bool threaded)
-{
-    m_processInSeparateThread = threaded;
-    Q_EMIT processFramesInSeparateThreadChanged();
-}
-
-/**
  * Loads the last saved JSON map file (if any)
  */
-void Generator::readSettings()
+void JSON::Generator::readSettings()
 {
     auto path = m_settings.value("json_map_location", "").toString();
     if (!path.isEmpty())
@@ -229,49 +207,11 @@ void Generator::readSettings()
 }
 
 /**
- * Notifies the rest of the application that a new JSON frame has been received. The JFI
- * also contains RX date/time and frame number.
- *
- * Read the "FrameInfo.h" file for more information.
- */
-void Generator::loadJFI(const JFI_Object &info)
-{
-    const bool csvOpen = CSV::Player::getInstance()->isOpen();
-    const bool devOpen = IO::Manager::getInstance()->connected();
-    const bool mqttSub = MQTT::Client::getInstance()->isSubscribed();
-
-    if (csvOpen || devOpen || mqttSub)
-        Q_EMIT jsonChanged(info);
-
-    else
-        reset();
-}
-
-/**
  * Saves the location of the last valid JSON map file that was opened (if any)
  */
-void Generator::writeSettings(const QString &path)
+void JSON::Generator::writeSettings(const QString &path)
 {
     m_settings.setValue("json_map_location", path);
-}
-
-/**
- * Create a new JFI event with the given @a JSON document and increment the frame count
- */
-void Generator::loadJSON(const QJsonDocument &json)
-{
-    m_frameCount++;
-    auto jfi = JFI_CreateNew(m_frameCount, QDateTime::currentDateTime(), json);
-    loadJFI(jfi);
-}
-
-/**
- * Resets all the statistics related to the current device and the JSON map file
- */
-void Generator::reset()
-{
-    m_frameCount = 0;
-    Q_EMIT jsonChanged(JFI_Empty());
 }
 
 /**
@@ -287,202 +227,69 @@ void Generator::reset()
  * If JSON parsing is successfull, then the class shall notify the rest of the
  * application in order to process packet data.
  */
-void Generator::readData(const QByteArray &data)
+void JSON::Generator::readData(const QByteArray &data)
 {
     // Data empty, abort
     if (data.isEmpty())
         return;
 
-    // Increment received frames and process frame
-    m_frameCount++;
-
-    // Create new worker thread to read JSON data
-    if (processFramesInSeparateThread())
-    {
-        // clang-format off
-        QThread *thread = new QThread;
-        JSONWorker *worker = new JSONWorker(data,
-                                            m_frameCount,
-                                            QDateTime::currentDateTime());
-        worker->moveToThread(thread);
-        // clang-format on
-
-        connect(thread, SIGNAL(started()), worker, SLOT(process()));
-        connect(worker, SIGNAL(finished()), thread, SLOT(quit()));
-        connect(worker, SIGNAL(finished()), worker, SLOT(deleteLater()));
-        connect(thread, SIGNAL(finished()), thread, SLOT(deleteLater()));
-        connect(worker, &JSONWorker::jsonReady, this, &Generator::loadJFI);
-        thread->start();
-    }
-
-    // Process frames in main thread
-    else
-        processFrame(data, m_frameCount, QDateTime::currentDateTime());
-}
-
-/**
- * Reads the frame & inserts its values on the JSON map, and/or extracts the JSON frame
- * directly from the serial data.
- */
-void Generator::processFrame(const QByteArray &data, const quint64 frame,
-                             const QDateTime &time)
-{
-    // Init variables
-    QJsonParseError error;
-    QJsonDocument document;
-
     // Serial device sends JSON (auto mode)
-    if (operationMode() == Generator::kAutomatic)
-        document = QJsonDocument::fromJson(data, &error);
+    QJsonObject jsonData;
+    if (operationMode() == JSON::Generator::kAutomatic)
+        jsonData = QJsonDocument::fromJson(data).object();
 
-    // We need to use a map file, check if its loaded & replace values into map
+    // Data is separated and parsed by Serial Studio (manual mode)
     else
     {
-        // Empty JSON map data
-        if (jsonMapData().isEmpty())
-            return;
+        // Copy JSON map
+        jsonData = m_json;
 
-        // Separate incoming data & add it to the JSON map
-        auto json = jsonMapData();
-        auto sepr = IO::Manager::getInstance()->separatorSequence();
-        auto list = QString::fromUtf8(data).split(sepr);
-        for (int i = 0; i < list.count(); ++i)
-            json.replace(QString("\"%%1\"").arg(i + 1), "\"" + list.at(i) + "\"");
+        // Get fields from frame parser function
+        auto fields = Project::CodeEditor::instance().parse(
+            QString::fromUtf8(data), IO::Manager::instance().separatorSequence());
 
-        // Create json document
-        const auto jsonData = json.toUtf8();
-        const auto jsonDocument = QJsonDocument::fromJson(jsonData, &error);
-
-        // Calculate dynamically generated values
-        auto root = jsonDocument.object();
-        auto groups = JFI_Value(root, "groups", "g").toArray();
+        // Replace data in JSON map
+        auto groups = jsonData.value("groups").toArray();
         for (int i = 0; i < groups.count(); ++i)
         {
-            // Get group
+            // Get group & list of datasets
             auto group = groups.at(i).toObject();
+            auto datasets = group.value("datasets").toArray();
 
-            // Evaluate each dataset of the current group
-            auto datasets = JFI_Value(group, "datasets", "d").toArray();
+            // Evaluate each dataset
             for (int j = 0; j < datasets.count(); ++j)
             {
                 auto dataset = datasets.at(j).toObject();
-                auto value = JFI_Value(dataset, "value", "v").toString();
-                dataset.remove("v");
-                dataset.remove("value");
-                dataset.insert("value", value);
-                datasets.replace(j, dataset);
+                auto index = dataset.value("index").toInt();
+
+                if (index <= fields.count() && index >= 1)
+                {
+                    dataset.remove("value");
+                    dataset.insert("value", QJsonValue(fields.at(index - 1)));
+                    datasets.removeAt(j);
+                    datasets.insert(j, dataset);
+                }
             }
 
-            // Replace group datasets
-            group.remove("d");
+            // Update datasets in group
             group.remove("datasets");
             group.insert("datasets", datasets);
-            groups.replace(i, group);
+
+            // Update group in groups array
+            groups.removeAt(i);
+            groups.insert(i, group);
+
+            // Update groups array in JSON frame
+            jsonData.remove("groups");
+            jsonData.insert("groups", groups);
         }
-
-        // Replace root document group objects
-        root.remove("g");
-        root.remove("groups");
-        root.insert("groups", groups);
-
-        // Create JSON document
-        document = QJsonDocument(root);
     }
 
-    // No parse error, update UI & reset error counter
-    if (error.error == QJsonParseError::NoError)
-        Q_EMIT jsonChanged(JFI_CreateNew(frame, time, document));
+    // Update UI
+    if (!jsonData.isEmpty())
+        Q_EMIT jsonChanged(jsonData);
 }
 
-//----------------------------------------------------------------------------------------
-// JSON worker object (executed for each frame on a new thread)
-//----------------------------------------------------------------------------------------
-
-/**
- * Constructor function, stores received frame data & the date/time that the frame data
- * was received.
- */
-JSONWorker::JSONWorker(const QByteArray &data, const quint64 frame, const QDateTime &time)
-    : m_time(time)
-    , m_data(data)
-    , m_frame(frame)
-{
-}
-
-/**
- * Reads the frame & inserts its values on the JSON map, and/or extracts the JSON frame
- * directly from the serial data.
- */
-void JSONWorker::process()
-{
-    // Init variables
-    QJsonParseError error;
-    QJsonDocument document;
-
-    // Serial device sends JSON (auto mode)
-    const auto generator = Generator::getInstance();
-    if (generator->operationMode() == Generator::kAutomatic)
-        document = QJsonDocument::fromJson(m_data, &error);
-
-    // We need to use a map file, check if its loaded & replace values into map
-    else
-    {
-        // Empty JSON map data
-        if (generator->jsonMapData().isEmpty())
-            return;
-
-        // Separate incoming data & add it to the JSON map
-        auto json = generator->jsonMapData();
-        const auto sepr = IO::Manager::getInstance()->separatorSequence();
-        const auto list = QString::fromUtf8(m_data).split(sepr);
-        for (int i = 0; i < list.count(); ++i)
-            json.replace(QString("\"%%1\"").arg(i + 1), "\"" + list.at(i) + "\"");
-
-        // Create json document
-        const auto jsonData = json.toUtf8();
-        const auto jsonDocument = QJsonDocument::fromJson(jsonData, &error);
-
-        // Calculate dynamically generated values
-        auto root = jsonDocument.object();
-        auto groups = JFI_Value(root, "groups", "g").toArray();
-        for (int i = 0; i < groups.count(); ++i)
-        {
-            // Get group
-            auto group = groups.at(i).toObject();
-
-            // Evaluate each dataset of the current group
-            auto datasets = JFI_Value(group, "datasets", "d").toArray();
-            for (int j = 0; j < datasets.count(); ++j)
-            {
-                auto dataset = datasets.at(j).toObject();
-                auto value = JFI_Value(dataset, "value", "v").toString();
-                dataset.remove("v");
-                dataset.remove("value");
-                dataset.insert("value", value);
-                datasets.replace(j, dataset);
-            }
-
-            // Replace group datasets
-            group.remove("d");
-            group.remove("datasets");
-            group.insert("datasets", datasets);
-            groups.replace(i, group);
-        }
-
-        // Replace root document group objects
-        root.remove("g");
-        root.remove("groups");
-        root.insert("groups", groups);
-
-        // Create JSON document
-        document = QJsonDocument(root);
-    }
-
-    // No parse error, update UI & reset error counter
-    if (error.error == QJsonParseError::NoError)
-        Q_EMIT jsonReady(JFI_CreateNew(m_frame, m_time, document));
-
-    // Delete object in 500 ms
-    QTimer::singleShot(500, this, SIGNAL(finished()));
-}
-}
+#ifdef SERIAL_STUDIO_INCLUDE_MOC
+#    include "moc_Generator.cpp"
+#endif

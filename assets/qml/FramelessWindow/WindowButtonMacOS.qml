@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021 Alex Spataru <https://github.com/alex-spataru>
+ * Copyright (c) 2020-2023 Alex Spataru <https://github.com/alex-spataru>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -20,7 +20,7 @@
  * THE SOFTWARE.
  */
 
-import QtQuick 2.12
+import QtQuick
 
 Image {
     id: root
@@ -39,7 +39,7 @@ Image {
         anchors.fill: parent
         onReleased: root.clicked()
         acceptedButtons: Qt.LeftButton
+        onPressedChanged: root.variant = (pressed ? "active" : "normal")
         onContainsMouseChanged: root.variant = (containsMouse ? "hover" : "normal")
-        onContainsPressChanged: root.variant = (containsPress ? "active" : "normal")
     }
 }

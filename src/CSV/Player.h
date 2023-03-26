@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021 Alex Spataru <https://github.com/alex-spataru>
+ * Copyright (c) 2020-2023 Alex Spataru <https://github.com/alex-spataru>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,7 +23,6 @@
 #pragma once
 
 #include <QFile>
-#include <QTimer>
 #include <QObject>
 #include <QVector>
 
@@ -58,8 +57,15 @@ Q_SIGNALS:
     void timestampChanged();
     void playerStateChanged();
 
+private:
+    explicit Player();
+    Player(Player &&) = delete;
+    Player(const Player &) = delete;
+    Player &operator=(Player &&) = delete;
+    Player &operator=(const Player &) = delete;
+
 public:
-    static Player *getInstance();
+    static Player &instance();
 
     bool isOpen() const;
     qreal progress() const;
@@ -69,9 +75,6 @@ public:
     int framePosition() const;
     QString timestamp() const;
     QString csvFilesPath() const;
-
-private:
-    Player();
 
 public Q_SLOTS:
     void play();
@@ -88,7 +91,6 @@ private Q_SLOTS:
     void updateData();
 
 private:
-    bool validateRow(const int row);
     QByteArray getFrame(const int row);
     QString getCellValue(const int row, const int column, bool &error);
 
@@ -96,7 +98,6 @@ private:
     int m_framePos;
     bool m_playing;
     QFile m_csvFile;
-    QTimer m_frameTimer;
     QString m_timestamp;
     QVector<QVector<QString>> m_csvData;
 };

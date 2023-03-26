@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021 Alex Spataru <https://github.com/alex-spataru>
+ * Copyright (c) 2020-2023 Alex Spataru <https://github.com/alex-spataru>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -20,10 +20,10 @@
  * THE SOFTWARE.
  */
 
-import QtQuick 2.12
-import QtQuick.Window 2.12
-import QtQuick.Layouts 1.12
-import QtQuick.Controls 2.12
+import QtQuick
+import QtQuick.Window
+import QtQuick.Layouts
+import QtQuick.Controls
 
 import "../Widgets" as Widgets
 
@@ -46,7 +46,7 @@ Control {
     signal setupClicked()
     signal consoleClicked()
     signal dashboardClicked()
-    signal jsonEditorClicked()
+    signal projectEditorClicked()
 
     //
     // Aliases to button check status
@@ -135,11 +135,28 @@ Control {
             onClicked: root.setupClicked()
             text: qsTr("Setup") + _btSpacer
             icon.source: "qrc:/icons/settings.svg"
-            icon.color: Cpp_ThemeManager.brightText
-            palette.buttonText: Cpp_ThemeManager.brightText
+            icon.color: Cpp_ThemeManager.menubarText
+            palette.buttonText: Cpp_ThemeManager.menubarText
             palette.button: Cpp_ThemeManager.toolbarGradient1
             palette.window: Cpp_ThemeManager.toolbarGradient1
             onCheckedChanged: Cpp_Misc_MacExtras.setSetupChecked(checked)
+
+            background: Rectangle {
+                radius: 3
+                border.width: 1
+                color: "transparent"
+                border.color: "#040600"
+                opacity: parent.checked ? 0.2 : 0.0
+
+                Rectangle {
+                    border.width: 1
+                    color: "#626262"
+                    anchors.fill: parent
+                    border.color: "#c2c2c2"
+                    radius: parent.radius - 1
+                    anchors.margins: parent.border.width
+                }
+            }
         }
 
         Button {
@@ -153,11 +170,28 @@ Control {
             onClicked: root.consoleClicked()
             icon.source: "qrc:/icons/code.svg"
             text: qsTr("Console") + _btSpacer
-            icon.color: Cpp_ThemeManager.brightText
-            palette.buttonText: Cpp_ThemeManager.brightText
+            icon.color: Cpp_ThemeManager.menubarText
+            palette.buttonText: Cpp_ThemeManager.menubarText
             palette.button: Cpp_ThemeManager.toolbarGradient1
             palette.window: Cpp_ThemeManager.toolbarGradient1
             onCheckedChanged: Cpp_Misc_MacExtras.setConsoleChecked(checked)
+
+            background: Rectangle {
+                radius: 3
+                border.width: 1
+                color: "transparent"
+                border.color: "#040600"
+                opacity: parent.checked ? 0.2 : 0.0
+
+                Rectangle {
+                    border.width: 1
+                    color: "#626262"
+                    anchors.fill: parent
+                    border.color: "#c2c2c2"
+                    radius: parent.radius - 1
+                    anchors.margins: parent.border.width
+                }
+            }
         }
 
         Button {
@@ -172,12 +206,29 @@ Control {
             enabled: Cpp_UI_Dashboard.available
             text: qsTr("Dashboard") + _btSpacer
             icon.source: "qrc:/icons/dashboard.svg"
-            icon.color: Cpp_ThemeManager.brightText
-            palette.buttonText: Cpp_ThemeManager.brightText
+            icon.color: Cpp_ThemeManager.menubarText
+            palette.buttonText: Cpp_ThemeManager.menubarText
             palette.button: Cpp_ThemeManager.toolbarGradient1
             palette.window: Cpp_ThemeManager.toolbarGradient1
             onCheckedChanged: Cpp_Misc_MacExtras.setDashboardChecked(checked)
             onEnabledChanged: Cpp_Misc_MacExtras.setDashboardEnabled(enabled)
+
+            background: Rectangle {
+                radius: 3
+                border.width: 1
+                color: "transparent"
+                border.color: "#040600"
+                opacity: parent.checked ? 0.2 : 0.0
+
+                Rectangle {
+                    border.width: 1
+                    color: "#626262"
+                    anchors.fill: parent
+                    border.color: "#c2c2c2"
+                    radius: parent.radius - 1
+                    anchors.margins: parent.border.width
+                }
+            }
         }
 
         //
@@ -187,10 +238,10 @@ Control {
             height: parent.height
             Layout.fillWidth: true
 
-            DragHandler {
-                grabPermissions: TapHandler.CanTakeOverFromAnything
-                onActiveChanged: {
-                    if (active)
+            MouseArea {
+                anchors.fill: parent
+                onPressedChanged: {
+                    if (pressed)
                         window.startSystemMove()
                 }
             }
@@ -202,12 +253,14 @@ Control {
             icon.height: 24
             Layout.fillHeight: true
             icon.source: "qrc:/icons/json.svg"
-            onClicked: root.jsonEditorClicked()
-            text: qsTr("JSON Editor") + _btSpacer
-            icon.color: Cpp_ThemeManager.brightText
-            palette.buttonText: Cpp_ThemeManager.brightText
+            onClicked: root.projectEditorClicked()
+            text: qsTr("Project Editor") + _btSpacer
+            icon.color: Cpp_ThemeManager.menubarText
+            palette.buttonText: Cpp_ThemeManager.menubarText
             palette.button: Cpp_ThemeManager.toolbarGradient1
             palette.window: Cpp_ThemeManager.toolbarGradient1
+
+            background: Item {}
         }
 
         Button {
@@ -219,8 +272,8 @@ Control {
             enabled: !Cpp_CSV_Player.isOpen
             icon.source: "qrc:/icons/open.svg"
             text: qsTr("Open CSV") + _btSpacer
-            icon.color: Cpp_ThemeManager.brightText
-            palette.buttonText: Cpp_ThemeManager.brightText
+            icon.color: Cpp_ThemeManager.menubarText
+            palette.buttonText: Cpp_ThemeManager.menubarText
             palette.button: Cpp_ThemeManager.toolbarGradient1
             palette.window: Cpp_ThemeManager.toolbarGradient1
 
@@ -230,6 +283,8 @@ Control {
                 else
                     Cpp_CSV_Player.openFile()
             }
+
+            background: Item{}
         }
 
         Button {
@@ -269,6 +324,26 @@ Control {
             // Connect/disconnect device when button is clicked
             //
             onClicked: Cpp_IO_Manager.toggleConnection()
+
+            //
+            // Custom button background
+            //
+            background: Rectangle {
+                radius: 3
+                border.width: 1
+                color: "transparent"
+                border.color: "#040600"
+                opacity: parent.checked ? 0.2 : 0.0
+
+                Rectangle {
+                    border.width: 1
+                    color: "#626262"
+                    anchors.fill: parent
+                    border.color: "#c2c2c2"
+                    radius: parent.radius - 1
+                    anchors.margins: parent.border.width
+                }
+            }
         }
     }
 }

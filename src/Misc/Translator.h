@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021 Alex Spataru <https://github.com/alex-spataru>
+ * Copyright (c) 2020-2023 Alex Spataru <https://github.com/alex-spataru>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -57,10 +57,14 @@ Q_SIGNALS:
     void languageChanged();
 
 private:
-    Translator();
+    explicit Translator();
+    Translator(Translator &&) = delete;
+    Translator(const Translator &) = delete;
+    Translator &operator=(Translator &&) = delete;
+    Translator &operator=(const Translator &) = delete;
 
 public:
-    static Translator *getInstance();
+    static Translator &instance();
 
     int language() const;
     int systemLanguage() const;

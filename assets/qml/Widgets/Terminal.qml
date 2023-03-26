@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021 Alex Spataru <https://github.com/alex-spataru>
+ * Copyright (c) 2020-2023 Alex Spataru <https://github.com/alex-spataru>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -20,12 +20,11 @@
  * THE SOFTWARE.
  */
 
-import QtQuick 2.12
-import QtQuick.Layouts 1.12
-import QtQuick.Controls 2.12
-
-import Qt.labs.settings 1.0
-import SerialStudio 1.0 as SerialStudio
+import QtQuick
+import QtQuick.Layouts
+import QtQuick.Controls
+import Qt.labs.settings
+import SerialStudio as SerialStudio
 
 Item {
     id: root
@@ -157,7 +156,7 @@ Item {
                 acceptedButtons: Qt.RightButton
                 anchors.rightMargin: textEdit.scrollbarWidth
 
-                onClicked: (mouse) => {
+                onClicked: {
                     if (mouse.button === Qt.RightButton) {
                         contextMenu.popup()
                         mouse.accepted = true

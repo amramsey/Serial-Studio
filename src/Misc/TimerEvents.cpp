@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021 Alex Spataru <https://github.com/alex-spataru>
+ * Copyright (c) 2020-2023 Alex Spataru <https://github.com/alex-spataru>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -20,94 +20,53 @@
  * THE SOFTWARE.
  */
 
-#include "TimerEvents.h"
-
-#include <QtMath>
-
-namespace Misc
-{
-
-/**
- * Pointer to the only instance of the class
- */
-static TimerEvents *TIMER_EVENTS = Q_NULLPTR;
-
-/**
- * Converts the given @a hz to milliseconds
- */
-static int HZ_TO_MS(const int hz)
-{
-    const double rHz = hz;
-    const double uHz = 1000;
-    return qRound(uHz / rHz);
-}
-
-/**
- * Constructor function
- */
-TimerEvents::TimerEvents()
-{
-    // Configure timeout intevals
-    m_timerLowFreq.setInterval(HZ_TO_MS(1));
-    m_timerHighFreq.setInterval(HZ_TO_MS(20));
-
-    // Configure signals/slots
-    connect(&m_timerLowFreq, &QTimer::timeout, this, &TimerEvents::lowFreqTimeout);
-    connect(&m_timerHighFreq, &QTimer::timeout, this, &TimerEvents::highFreqTimeout);
-}
+#include <QTimerEvent>
+#include <Misc/TimerEvents.h>
 
 /**
  * Returns a pointer to the only instance of the class
  */
-TimerEvents *TimerEvents::getInstance()
+Misc::TimerEvents &Misc::TimerEvents::instance()
 {
-    if (!TIMER_EVENTS)
-        TIMER_EVENTS = new TimerEvents;
-
-    return TIMER_EVENTS;
-}
-
-/**
- * Returns the target UI refresh frequency
- */
-int TimerEvents::highFreqTimeoutHz() const
-{
-    return HZ_TO_MS(m_timerHighFreq.interval());
+    static TimerEvents singleton;
+    return singleton;
 }
 
 /**
  * Stops all the timers of this module
  */
-void TimerEvents::stopTimers()
+void Misc::TimerEvents::stopTimers()
 {
-    m_timerLowFreq.stop();
-    m_timerHighFreq.stop();
+    m_timer1Hz.stop();
+    m_timer10Hz.stop();
+    m_timer20Hz.stop();
+}
+
+/**
+ * Emits the @c timeout signal when the basic timer expires
+ */
+void Misc::TimerEvents::timerEvent(QTimerEvent *event)
+{
+    if (event->timerId() == m_timer1Hz.timerId())
+        Q_EMIT timeout1Hz();
+
+    else if (event->timerId() == m_timer10Hz.timerId())
+        Q_EMIT timeout10Hz();
+
+    else if (event->timerId() == m_timer20Hz.timerId())
+        Q_EMIT timeout20Hz();
 }
 
 /**
  * Starts all the timer of the module
  */
-void TimerEvents::startTimers()
+void Misc::TimerEvents::startTimers()
 {
-    m_timerLowFreq.start();
-    m_timerHighFreq.start();
+    m_timer20Hz.start(50, this);
+    m_timer10Hz.start(100, this);
+    m_timer1Hz.start(1000, this);
 }
 
-/**
- * Updates the target UI refresh frequency
- */
-void TimerEvents::setHighFreqTimeout(const int hz)
-{
-    if (hz > 0)
-    {
-        m_timerHighFreq.setInterval(HZ_TO_MS(hz));
-        Q_EMIT highFreqTimeoutChanged();
-    }
-
-    else
-    {
-        m_timerHighFreq.setInterval(HZ_TO_MS(1));
-        Q_EMIT highFreqTimeoutChanged();
-    }
-}
-}
+#ifdef SERIAL_STUDIO_INCLUDE_MOC
+#    include "moc_TimerEvents.cpp"
+#endif

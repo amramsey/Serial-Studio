@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Alex Spataru <https://github.com/alex-spataru>
+ * Copyright (c) 2021-2023 Alex Spataru <https://github.com/alex-spataru>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -20,9 +20,9 @@
  * THE SOFTWARE.
  */
 
-import QtQuick 2.12
-import QtQuick.Layouts 1.12
-import QtQuick.Controls 2.12
+import QtQuick
+import QtQuick.Layouts
+import QtQuick.Controls
 
 import "../Widgets" as Widgets
 import "../Dashboard" as DashboardItems
@@ -47,21 +47,12 @@ Item {
             Layout.fillHeight: true
 
             //
-            // View options window + shadow
+            // View options window
             //
-            Item {
+            DashboardItems.ViewOptions {
                 Layout.fillHeight: true
                 Layout.minimumWidth: 280
-
-                Widgets.Shadow {
-                    anchors.fill: viewOptions
-                }
-
-                DashboardItems.ViewOptions {
-                    id: viewOptions
-                    anchors.fill: parent
-                    onWidgetSizeChanged: (maxSize) => widgetGrid.maxSize = maxSize
-                }
+                onWidgetSizeChanged:(maxSize) => widgetGrid.maxSize = maxSize
             }
 
             //
@@ -70,20 +61,13 @@ Item {
             ColumnLayout {
                 spacing: terminalView.enabled ? app.spacing : 0
 
-                Item {
+                DashboardItems.WidgetGrid {
+                    id: widgetGrid
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     Layout.minimumWidth: 240
-
-                    Widgets.Shadow {
-                        anchors.fill: widgetGrid
-                    }
-
-                    DashboardItems.WidgetGrid {
-                        id: widgetGrid
-                        anchors.fill: parent
-                    }
                 }
+
 
                 Item {
                     enabled: false
@@ -96,10 +80,6 @@ Item {
                     Layout.bottomMargin: enabled ? 0 : -Layout.minimumHeight
 
                     Behavior on Layout.bottomMargin { NumberAnimation{} }
-
-                    Widgets.Shadow {
-                        anchors.fill: terminal
-                    }
 
                     Widgets.Window {
                         id: terminal

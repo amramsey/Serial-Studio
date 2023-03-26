@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021 Alex Spataru <https://github.com/alex-spataru>
+ * Copyright (c) 2020-2023 Alex Spataru <https://github.com/alex-spataru>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,16 +23,16 @@
 #pragma once
 
 #include <QVector>
-#include <QObject>
-#include <QVariant>
-#include <QJsonArray>
-#include <QJsonObject>
-
-#include "Dataset.h"
+#include <JSON/Dataset.h>
 
 namespace UI
 {
 class Dashboard;
+}
+
+namespace Project
+{
+class Model;
 }
 
 namespace JSON
@@ -57,26 +57,25 @@ namespace JSON
  * - Widget
  * - A vector of datasets
  */
-class Group : public QObject
+class Group
 {
 public:
-    Group(QObject *parent = Q_NULLPTR);
     ~Group();
 
     QString title() const;
     QString widget() const;
     int datasetCount() const;
-    QVector<Dataset *> &datasets();
+    QVector<JSON::Dataset> &datasets();
     bool read(const QJsonObject &object);
 
-    Q_INVOKABLE JSON::Dataset *getDataset(const int index);
+    Q_INVOKABLE const JSON::Dataset &getDataset(const int index) const;
 
 private:
     QString m_title;
     QString m_widget;
-    QVector<Dataset *> m_datasets;
+    QVector<JSON::Dataset> m_datasets;
 
-    friend class Editor;
     friend class UI::Dashboard;
+    friend class Project::Model;
 };
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021 Alex Spataru <https://github.com/alex-spataru>
+ * Copyright (c) 2020-2023 Alex Spataru <https://github.com/alex-spataru>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -85,6 +85,13 @@ Q_SIGNALS:
     void showTimestampChanged();
     void stringReceived(const QString &text);
 
+private:
+    explicit Console();
+    Console(Console &&) = delete;
+    Console(const Console &) = delete;
+    Console &operator=(Console &&) = delete;
+    Console &operator=(const Console &) = delete;
+
 public:
     enum class DisplayMode
     {
@@ -109,7 +116,7 @@ public:
     };
     Q_ENUM(LineEnding)
 
-    static Console *getInstance();
+    static Console &instance();
 
     bool echo() const;
     bool autoscroll() const;
@@ -142,13 +149,11 @@ public Q_SLOTS:
     void append(const QString &str, const bool addTimestamp = false);
 
 private Q_SLOTS:
-    void displayData();
     void onDataSent(const QByteArray &data);
     void addToHistory(const QString &command);
     void onDataReceived(const QByteArray &data);
 
 private:
-    Console();
     QByteArray hexToBytes(const QString &data);
     QString dataToString(const QByteArray &data);
     QString plainTextStr(const QByteArray &data);
@@ -169,8 +174,7 @@ private:
     StringList m_lines;
     StringList m_historyItems;
 
-    QString m_textBuffer;
     QString m_printFont;
-    QByteArray m_dataBuffer;
+    QString m_textBuffer;
 };
 }

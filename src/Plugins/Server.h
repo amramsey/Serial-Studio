@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021 Alex Spataru <https://github.com/alex-spataru>
+ * Copyright (c) 2020-2023 Alex Spataru <https://github.com/alex-spataru>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -30,7 +30,6 @@
 
 #include <JSON/Frame.h>
 #include <JSON/Dataset.h>
-#include <JSON/FrameInfo.h>
 
 /**
  * Default TCP port to use for incoming connections, I choose 7777 because 7 is one of
@@ -63,8 +62,17 @@ class Server : public QObject
 Q_SIGNALS:
     void enabledChanged();
 
+private:
+    explicit Server();
+    Server(Server &&) = delete;
+    Server(const Server &) = delete;
+    Server &operator=(Server &&) = delete;
+    Server &operator=(const Server &) = delete;
+
+    ~Server();
+
 public:
-    static Server *getInstance();
+    static Server &instance();
     bool enabled() const;
 
 public Q_SLOTS:
@@ -76,17 +84,13 @@ private Q_SLOTS:
     void acceptConnection();
     void sendProcessedData();
     void sendRawData(const QByteArray &data);
-    void registerFrame(const JFI_Object &frameInfo);
+    void registerFrame(const QJsonObject &json);
     void onErrorOccurred(const QAbstractSocket::SocketError socketError);
-
-private:
-    Server();
-    ~Server();
 
 private:
     bool m_enabled;
     QTcpServer m_server;
-    QVector<JFI_Object> m_frames;
+    QVector<QJsonObject> m_frames;
     QVector<QTcpSocket *> m_sockets;
 };
 }

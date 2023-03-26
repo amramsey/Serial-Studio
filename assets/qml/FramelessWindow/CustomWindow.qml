@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021 Alex Spataru <https://github.com/alex-spataru>
+ * Copyright (c) 2020-2023 Alex Spataru <https://github.com/alex-spataru>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -20,15 +20,15 @@
  * THE SOFTWARE.
  */
 
-import QtQuick 2.12
-import QtQuick.Window 2.12 as QtWindow
+import QtQuick
+import QtQuick.Window as QtWindow
 
 import "../Widgets" as Widgets
 
 QtWindow.Window {
     id: root
     color: "transparent"
-    flags: root.customFlags | root.extraFlags
+    flags: (Cpp_ThemeManager.customWindowDecorations ? root.customFlags : Qt.Window) | root.extraFlags
 
     //
     // Custom signals
@@ -39,11 +39,31 @@ QtWindow.Window {
     signal unmaximized()
 
     //
+    // Connections with the theme manager for enabling/disabling frameless window
+    //
+    Connections {
+        target: Cpp_ThemeManager
+
+        function onCustomWindowDecorationsChanged() {
+            if (Cpp_ThemeManager.customWindowDecorations)
+                root.flags = root.customFlags | root.extraFlags
+            else
+                root.flags = Qt.Window | root.extraFlags
+
+            var prevVisible = root.visible
+            root.visible = false
+            root.visible = prevVisible
+        }
+    }
+
+    //
     // Window radius control
     //
-    property int borderWidth: 2
+    property int borderWidth: Cpp_ThemeManager.customWindowDecorations ? 2 : 0
     readonly property int handleSize: radius > 0 ? radius + shadowMargin + 10 : 0
-    readonly property int radius: ((root.visibility === QtWindow.Window.Maximized && maximizeEnabled) || isFullscreen) ? 0 : 10
+    readonly property int radius: Cpp_ThemeManager.customWindowDecorations ?
+                                      (((root.visibility === QtWindow.Window.Maximized &&
+                                         maximizeEnabled) || isFullscreen) ? 0 : 10) : 0
 
     //
     // Visibility properties
@@ -57,10 +77,10 @@ QtWindow.Window {
     readonly property int customFlags: {
         // Setup frameless window flags
         var flags = Qt.Window |
-                    Qt.CustomizeWindowHint |
-                    Qt.FramelessWindowHint |
-                    Qt.WindowSystemMenuHint |
-                    Qt.WindowMinMaxButtonsHint
+                Qt.CustomizeWindowHint |
+                Qt.FramelessWindowHint |
+                Qt.WindowSystemMenuHint |
+                Qt.WindowMinMaxButtonsHint
 
         //
         // The macOS window manager is able to generate shadows for Qt frameless
@@ -97,21 +117,22 @@ QtWindow.Window {
     //
     // Size of the shadow object
     //
-    property int shadowMargin: Cpp_IsMac ? 0 : (root.radius > 0 ? 20 : 0)
+    property int shadowMargin: (Cpp_IsMac | !Cpp_ThemeManager.customWindowDecorations) ?
+                                   0 : (root.radius > 0 ? 20 : 0)
 
     //
     // Titlebar left/right margins for custom controls
     //
-    property alias leftTitlebarMargin: _title.leftMargin
-    property alias rightTitlebarMargin: _title.rightMargin
     property alias showMacControls: _title.showMacControls
+    readonly property real leftTitlebarMargin: Cpp_ThemeManager.customWindowDecorations ? _title.leftMargin : 0
+    readonly property real rightTitlebarMargin: Cpp_ThemeManager.customWindowDecorations ? _title.rightMargin : 0
 
     //
     // Background color of the window & the titlebar
     //
     property color borderColor: Cpp_ThemeManager.highlight
     property color backgroundColor: Cpp_ThemeManager.window
-    property color titlebarText: Cpp_ThemeManager.brightText
+    property color titlebarText: Cpp_ThemeManager.menubarText
     property color titlebarColor: Cpp_ThemeManager.toolbarGradient2
 
     //
@@ -190,39 +211,6 @@ QtWindow.Window {
     }
 
     //
-    // Handle for resizing the window
-    // Note: this does not work on macOS, see the following article for more information
-    //       https://www.qt.io/blog/custom-window-decorations
-    //
-    DragHandler {
-        id: resizeHandler
-        target: null
-        enabled: !Cpp_IsMac
-        grabPermissions: TapHandler.TakeOverForbidden
-        onActiveChanged: {
-            if (active) {
-                const p = resizeHandler.centroid.position
-                const b = root.handleSize
-                let e = 0;
-
-                if (p.x < b)
-                    e |= Qt.LeftEdge
-
-                if (p.x >= width - b)
-                    e |= Qt.RightEdge
-
-                if (p.y < b)
-                    e |= Qt.TopEdge
-
-                if (p.y >= height - b)
-                    e |= Qt.BottomEdge
-
-                root.startSystemResize(e)
-            }
-        }
-    }
-
-    //
     // Global mouse area to set cursor shape while resizing
     //
     MouseArea {
@@ -230,6 +218,7 @@ QtWindow.Window {
         hoverEnabled: true
         anchors.fill: parent
         acceptedButtons: Qt.NoButton
+        enabled: Cpp_ThemeManager.customWindowDecorations
         cursorShape: {
             const p = Qt.point(mouseX, mouseY)
             const b = root.handleSize / 2
@@ -281,13 +270,20 @@ QtWindow.Window {
     //
     // Maximize window fixes
     //
-    onVisibilityChanged: {
-        // Hard-reset window flags on macOS to fix most glitches
-        if (Cpp_IsMac)
-            root.flags = Qt.Window
-
+    onVisibilityChanged: (visibility) => {
         // Ensure that correct window flags are still used
-        root.flags = root.customFlags | root.extraFlags
+        if (Cpp_ThemeManager.customWindowDecorations) {
+            // Hard-reset window flags on macOS to fix most glitches
+            if (Cpp_IsMac)
+                root.flags = Qt.Window
+
+            // Apply custom flags
+            root.flags = root.customFlags | root.extraFlags
+        }
+
+        // Apply basic flags
+        else
+            root.flags = Qt.Window | root.extraFlags
 
         // Window has been just maximized, update internal variables
         if (visibility === QtWindow.Window.Maximized) {

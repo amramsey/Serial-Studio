@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021 Alex Spataru <https://github.com/alex-spataru>
+ * Copyright (c) 2020-2023 Alex Spataru <https://github.com/alex-spataru>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,10 +23,9 @@
 #pragma once
 
 // clang-format off
-#define APP_VERSION     "1.1.5"
+#define APP_VERSION     "2.0.0"
 #define APP_DEVELOPER   "Alex Spataru"
 #define APP_NAME        "Serial Studio"
-#define APP_ICON        ":/images/icon.svg"
 #define APP_SUPPORT_URL "https://github.com/serial-studio"
 #define APP_UPDATER_URL "https://raw.githubusercontent.com/Serial-Studio/Serial-Studio/master/updates.json"
 // clang-format on

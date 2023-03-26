@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021 Alex Spataru <https://github.com/alex-spataru>
+ * Copyright (c) 2020-2023 Alex Spataru <https://github.com/alex-spataru>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,8 +23,10 @@
 #pragma once
 
 #include <QFile>
+#include <QVector>
 #include <QObject>
 #include <QVariant>
+#include <QDateTime>
 #include <QTextStream>
 #include <QJsonObject>
 
@@ -64,15 +66,20 @@ Q_SIGNALS:
     void openChanged();
     void enabledChanged();
 
+private:
+    explicit Export();
+    Export(Export &&) = delete;
+    Export(const Export &) = delete;
+    Export &operator=(Export &&) = delete;
+    Export &operator=(const Export &) = delete;
+
+    ~Export();
+
 public:
-    static Export *getInstance();
+    static Export &instance();
 
     bool isOpen() const;
     bool exportEnabled() const;
-
-private:
-    Export();
-    ~Export();
 
 public Q_SLOTS:
     void closeFile();
@@ -86,6 +93,7 @@ private Q_SLOTS:
 
 private:
     QFile m_csvFile;
+    int m_fieldCount;
     bool m_exportEnabled;
     QTextStream m_textStream;
     QVector<RawFrame> m_frames;

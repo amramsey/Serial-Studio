@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021 Alex Spataru <https://github.com/alex-spataru>
+ * Copyright (c) 2020-2023 Alex Spataru <https://github.com/alex-spataru>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -27,8 +27,7 @@
 #include <QVariant>
 #include <QJsonArray>
 #include <QJsonObject>
-
-#include "Group.h"
+#include <JSON/Group.h>
 
 namespace JSON
 {
@@ -52,23 +51,22 @@ namespace JSON
  *    frame.
  * 9) UI dashboard updates the widgets with the C++ model provided by this class.
  */
-class Frame : public QObject
+class Frame
 {
 public:
-    Frame(QObject *parent = nullptr);
     ~Frame();
 
     void clear();
     QString title() const;
     int groupCount() const;
-    QVector<Group *> groups() const;
+    QVector<Group> &groups();
     bool read(const QJsonObject &object);
-    Q_INVOKABLE JSON::Group *getGroup(const int index);
+    Q_INVOKABLE const JSON::Group &getGroup(const int index) const;
 
     inline bool isValid() const { return !title().isEmpty() && groupCount() > 0; }
 
 private:
     QString m_title;
-    QVector<Group *> m_groups;
+    QVector<Group> m_groups;
 };
 }

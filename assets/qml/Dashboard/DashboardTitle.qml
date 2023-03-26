@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Alex Spataru <https://github.com/alex-spataru>
+ * Copyright (c) 2021-2023 Alex Spataru <https://github.com/alex-spataru>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -20,96 +20,77 @@
  * THE SOFTWARE.
  */
 
-import QtQuick 2.12
-import QtQuick.Layouts 1.12
-import QtQuick.Controls 2.12
-
-import Qt.labs.settings 1.0
+import QtQuick
+import QtQuick.Layouts
+import QtQuick.Controls
+import Qt.labs.settings
 
 import "../Widgets" as Widgets
 
-Item {
+Rectangle {
     id: root
+    radius: 5
 
-    //
-    // Signals & settings for console button
-    //
     property alias consoleChecked: consoleBt.checked
+
     Settings {
         property alias consoleVisible: root.consoleChecked
     }
 
-    //
-    // Window shadow (must go before window declaration
-    // to avoid blurry artifacts & glitches).
-    //
-    Widgets.Shadow {
-        anchors.fill: window
-    }
-
-    //
-    // Window
-    //
-    Rectangle {
-        id: window
-        radius: 5
-        anchors.fill: parent
-
-        gradient: Gradient {
-            GradientStop {
-                position: 0
-                color: Cpp_ThemeManager.windowGradient1
-            }
-
-            GradientStop {
-                position: 1
-                color: Cpp_ThemeManager.windowGradient2
-            }
+    gradient: Gradient {
+        GradientStop {
+            position: 0
+            color: Cpp_ThemeManager.windowGradient1
         }
 
-        RowLayout {
-            spacing: app.spacing
+        GradientStop {
+            position: 1
+            color: Cpp_ThemeManager.windowGradient2
+        }
+    }
 
-            anchors {
-                margins: 0
-                left: parent.left
-                right: parent.right
-                leftMargin: app.spacing
-                rightMargin: app.spacing
-                verticalCenter: parent.verticalCenter
-            }
+    RowLayout {
+        spacing: app.spacing
 
-            Widgets.Icon {
-                Layout.alignment: Qt.AlignVCenter
-                source: "qrc:/icons/arrow-right.svg"
-            }
+        anchors {
+            margins: 0
+            left: parent.left
+            right: parent.right
+            leftMargin: app.spacing
+            rightMargin: app.spacing
+            verticalCenter: parent.verticalCenter
+        }
 
-            Label {
-                font.bold: true
-                font.pixelSize: 16
-                color: palette.brightText
-                font.family: app.monoFont
-                text: Cpp_UI_Dashboard.title
-                Layout.alignment: Qt.AlignVCenter
-            }
+        Widgets.Icon {
+            Layout.alignment: Qt.AlignVCenter
+            source: "qrc:/icons/arrow-right.svg"
+        }
 
-            Item {
-                Layout.fillWidth: true
-            }
+        Label {
+            font.bold: true
+            font.pixelSize: 16
+            color: palette.brightText
+            font.family: app.monoFont
+            text: Cpp_UI_Dashboard.title
+            Layout.alignment: Qt.AlignVCenter
+        }
 
-            Button {
-                flat: true
-                id: consoleBt
-                checkable: true
-                font.bold: true
-                text: qsTr("Console")
-                Layout.alignment: Qt.AlignVCenter
-                icon.source: "qrc:/icons/code.svg"
-                icon.color: Cpp_ThemeManager.brightText
-                palette.buttonText: Cpp_ThemeManager.brightText
-                palette.button: Cpp_ThemeManager.windowGradient1
-                palette.window: Cpp_ThemeManager.windowGradient1
-            }
+        Item {
+            Layout.fillWidth: true
+        }
+
+        Button {
+            flat: true
+            id: consoleBt
+            checkable: true
+            font.bold: true
+            text: qsTr("Console")
+            Layout.alignment: Qt.AlignVCenter
+            icon.source: "qrc:/icons/code.svg"
+            icon.color: Cpp_ThemeManager.menubarText
+            palette.buttonText: Cpp_ThemeManager.menubarText
+            palette.button: Cpp_ThemeManager.windowGradient1
+            palette.window: Cpp_ThemeManager.windowGradient1
         }
     }
 }

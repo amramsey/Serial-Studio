@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021 Alex Spataru <https://github.com/alex-spataru>
+ * Copyright (c) 2020-2023 Alex Spataru <https://github.com/alex-spataru>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -20,9 +20,9 @@
  * THE SOFTWARE.
  */
 
-import QtQuick 2.12
-import QtQuick.Window 2.0
-import QtQuick.Controls 2.12
+import QtQuick
+import QtQuick.Window
+import QtQuick.Controls
 
 import "Windows" as Windows
 
@@ -42,7 +42,7 @@ Item {
     property Windows.Donate donateDialog: null
     property Windows.MainWindow mainWindow: null
     property Windows.CsvPlayer csvPlayerDialog: null
-    property Windows.JsonEditor jsonEditorWindow: null
+    property Windows.ProjectEditor projectEditorWindow: null
     property Windows.Acknowledgements acknowledgementsDialog: null
 
     //
@@ -60,7 +60,6 @@ Item {
         asynchronous: true
         sourceComponent: Windows.MainWindow {
             Component.onCompleted: {
-                Cpp_ModuleManager.hideSplashscreen()
                 app.forceActiveFocus()
                 app.mainWindow = this
             }
@@ -88,12 +87,12 @@ Item {
     }
 
     //
-    // JSON Editor dialog
+    // Project editor dialog
     //
     Loader {
         asynchronous: true
-        sourceComponent: Windows.JsonEditor {
-            Component.onCompleted: app.jsonEditorWindow = this
+        sourceComponent: Windows.ProjectEditor {
+            Component.onCompleted: app.projectEditorWindow = this
         }
     }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021 Alex Spataru <https://github.com/alex-spataru>
+ * Copyright (c) 2020-2023 Alex Spataru <https://github.com/alex-spataru>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -20,45 +20,31 @@
  * THE SOFTWARE.
  */
 
-#include "Frame.h"
-#include "FrameInfo.h"
-
-namespace JSON
-{
-
-/**
- * Constructor function
- */
-Frame::Frame(QObject *parent)
-    : QObject(parent)
-    , m_title("")
-{
-}
+#include <JSON/Frame.h>
 
 /**
  * Destructor function, free memory used by the @c Group objects before destroying an
  * instance of this class.
  */
-Frame::~Frame()
+JSON::Frame::~Frame()
 {
-    clear();
+    m_groups.clear();
 }
 
 /**
  * Resets the frame title and frees the memory used by the @c Group objects associated
  * to the instance of the @c Frame object.
  */
-void Frame::clear()
+void JSON::Frame::clear()
 {
     m_title = "";
-    qDeleteAll(m_groups);
     m_groups.clear();
 }
 
 /**
  * Returns the title of the frame.
  */
-QString Frame::title() const
+QString JSON::Frame::title() const
 {
     return m_title;
 }
@@ -66,7 +52,7 @@ QString Frame::title() const
 /**
  * Returns the number of groups contained in the frame.
  */
-int Frame::groupCount() const
+int JSON::Frame::groupCount() const
 {
     return m_groups.count();
 }
@@ -74,7 +60,7 @@ int Frame::groupCount() const
 /**
  * Returns a vector of pointers to the @c Group objects associated to this frame.
  */
-QVector<Group *> Frame::groups() const
+QVector<JSON::Group> &JSON::Frame::groups()
 {
     return m_groups;
 }
@@ -85,14 +71,14 @@ QVector<Group *> Frame::groups() const
  *
  * @return @c true on success, @c false on failure
  */
-bool Frame::read(const QJsonObject &object)
+bool JSON::Frame::read(const QJsonObject &object)
 {
     // Rest frame data
     clear();
 
     // Get title & groups array
-    const auto title = JFI_Value(object, "title", "t").toString();
-    const auto groups = JFI_Value(object, "groups", "g").toArray();
+    auto title = object.value("title").toString();
+    auto groups = object.value("groups").toArray();
 
     // We need to have a project title and at least one group
     if (!title.isEmpty() && !groups.isEmpty())
@@ -103,11 +89,9 @@ bool Frame::read(const QJsonObject &object)
         // Generate groups & datasets from data frame
         for (auto i = 0; i < groups.count(); ++i)
         {
-            Group *group = new Group(this);
-            if (group->read(groups.at(i).toObject()))
+            Group group;
+            if (group.read(groups.at(i).toObject()))
                 m_groups.append(group);
-            else
-                delete group;
         }
 
         // Return status
@@ -120,13 +104,9 @@ bool Frame::read(const QJsonObject &object)
 }
 
 /**
- * @return The group at the given @a index,vreturns @c Q_NULLPTR on invalid index
+ * @return The group at the given @a index
  */
-JSON::Group *Frame::getGroup(const int index)
+const JSON::Group &JSON::Frame::getGroup(const int index) const
 {
-    if (index < groupCount() && index >= 0)
-        return m_groups.at(index);
-
-    return Q_NULLPTR;
-}
+    return m_groups.at(index);
 }

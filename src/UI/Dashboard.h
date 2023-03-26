@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021 Alex Spataru <https://github.com/alex-spataru>
+ * Copyright (c) 2020-2023 Alex Spataru <https://github.com/alex-spataru>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -26,7 +26,6 @@
 #include <QObject>
 #include <DataTypes.h>
 #include <JSON/Frame.h>
-#include <JSON/FrameInfo.h>
 
 namespace UI
 {
@@ -154,6 +153,13 @@ Q_SIGNALS:
     void widgetCountChanged();
     void widgetVisibilityChanged();
 
+private:
+    explicit Dashboard();
+    Dashboard(Dashboard &&) = delete;
+    Dashboard(const Dashboard &) = delete;
+    Dashboard &operator=(Dashboard &&) = delete;
+    Dashboard &operator=(const Dashboard &) = delete;
+
 public:
     enum class WidgetType
     {
@@ -172,20 +178,20 @@ public:
     };
     Q_ENUM(WidgetType)
 
-    static Dashboard *getInstance();
+    static Dashboard &instance();
 
     QFont monoFont() const;
-    JSON::Group *getLED(const int index);
-    JSON::Group *getGPS(const int index);
-    JSON::Dataset *getFFT(const int index);
-    JSON::Dataset *getBar(const int index);
-    JSON::Group *getGroups(const int index);
-    JSON::Dataset *getPlot(const int index);
-    JSON::Dataset *getGauge(const int index);
-    JSON::Group *getGyroscope(const int index);
-    JSON::Dataset *getCompass(const int index);
-    JSON::Group *getMultiplot(const int index);
-    JSON::Group *getAccelerometer(const int index);
+    const JSON::Group &getLED(const int index) const;
+    const JSON::Group &getGPS(const int index) const;
+    const JSON::Dataset &getFFT(const int index) const;
+    const JSON::Dataset &getBar(const int index) const;
+    const JSON::Group &getGroups(const int index) const;
+    const JSON::Dataset &getPlot(const int index) const;
+    const JSON::Dataset &getGauge(const int index) const;
+    const JSON::Group &getGyroscope(const int index) const;
+    const JSON::Dataset &getCompass(const int index) const;
+    const JSON::Group &getMultiplot(const int index) const;
+    const JSON::Group &getAccelerometer(const int index) const;
 
     QString title();
     bool available();
@@ -206,7 +212,7 @@ public:
     int accelerometerCount() const;
 
     Q_INVOKABLE bool frameValid() const;
-    Q_INVOKABLE StringList widgetTitles() const;
+    Q_INVOKABLE StringList widgetTitles();
     Q_INVOKABLE int relativeIndex(const int globalIndex) const;
     Q_INVOKABLE bool widgetVisible(const int globalIndex) const;
     Q_INVOKABLE QString widgetIcon(const int globalIndex) const;
@@ -224,21 +230,22 @@ public:
     Q_INVOKABLE bool multiPlotVisible(const int index) const;
     Q_INVOKABLE bool accelerometerVisible(const int index) const;
 
-    StringList barTitles() const;
-    StringList fftTitles() const;
-    StringList gpsTitles() const;
-    StringList ledTitles() const;
-    StringList plotTitles() const;
-    StringList groupTitles() const;
-    StringList gaugeTitles() const;
-    StringList compassTitles() const;
-    StringList gyroscopeTitles() const;
-    StringList multiPlotTitles() const;
-    StringList accelerometerTitles() const;
+    StringList barTitles();
+    StringList fftTitles();
+    StringList gpsTitles();
+    StringList ledTitles();
+    StringList plotTitles();
+    StringList groupTitles();
+    StringList gaugeTitles();
+    StringList compassTitles();
+    StringList gyroscopeTitles();
+    StringList multiPlotTitles();
+    StringList accelerometerTitles();
 
-    PlotData *xPlotValues() { return &m_xData; }
-    QVector<PlotData> *fftPlotValues() { return &m_fftPlotValues; }
-    QVector<PlotData> *linearPlotValues() { return &m_linearPlotValues; }
+    const PlotData &xPlotValues() { return m_xData; }
+    const JSON::Frame &currentFrame() { return m_currentFrame; }
+    const QVector<PlotData> &fftPlotValues() { return m_fftPlotValues; }
+    const QVector<PlotData> &linearPlotValues() { return m_linearPlotValues; }
 
 public Q_SLOTS:
     void setPoints(const int points);
@@ -257,28 +264,21 @@ public Q_SLOTS:
 
 private Q_SLOTS:
     void resetData();
-    void updateData();
     void updatePlots();
-    void processLatestJSON(const JFI_Object &frameInfo);
+    void processLatestJSON(const QJsonObject &json);
 
 private:
-    Dashboard();
+    QVector<JSON::Group> getLEDWidgets();
+    QVector<JSON::Dataset> getFFTWidgets();
+    QVector<JSON::Dataset> getPlotWidgets();
+    QVector<JSON::Group> getWidgetGroups(const QString &handle);
+    QVector<JSON::Dataset> getWidgetDatasets(const QString &handle);
 
-    QVector<JSON::Group *> getLEDWidgets() const;
-    QVector<JSON::Dataset *> getFFTWidgets() const;
-    QVector<JSON::Dataset *> getPlotWidgets() const;
-    QVector<JSON::Group *> getWidgetGroups(const QString &handle) const;
-    QVector<JSON::Dataset *> getWidgetDatasets(const QString &handle) const;
-
-    StringList groupTitles(const QVector<JSON::Group *> &vector) const;
-    StringList datasetTitles(const QVector<JSON::Dataset *> &vector) const;
+    StringList groupTitles(const QVector<JSON::Group> &vector);
+    StringList datasetTitles(const QVector<JSON::Dataset> &vector);
 
     bool getVisibility(const QVector<bool> &vector, const int index) const;
     void setVisibility(QVector<bool> &vector, const int index, const bool visible);
-
-    JSON::Group *getGroupWidget(const QVector<JSON::Group *> &vector, const int index);
-    JSON::Dataset *getDatasetWidget(const QVector<JSON::Dataset *> &vector,
-                                    const int index);
 
 private:
     int m_points;
@@ -300,20 +300,19 @@ private:
     QVector<bool> m_multiPlotVisibility;
     QVector<bool> m_accelerometerVisibility;
 
-    QVector<JSON::Dataset *> m_barWidgets;
-    QVector<JSON::Dataset *> m_fftWidgets;
-    QVector<JSON::Dataset *> m_plotWidgets;
-    QVector<JSON::Dataset *> m_gaugeWidgets;
-    QVector<JSON::Dataset *> m_compassWidgets;
+    QVector<JSON::Dataset> m_barWidgets;
+    QVector<JSON::Dataset> m_fftWidgets;
+    QVector<JSON::Dataset> m_plotWidgets;
+    QVector<JSON::Dataset> m_gaugeWidgets;
+    QVector<JSON::Dataset> m_compassWidgets;
 
-    QVector<JSON::Group *> m_ledWidgets;
-    QVector<JSON::Group *> m_gpsWidgets;
-    QVector<JSON::Group *> m_groupWidgets;
-    QVector<JSON::Group *> m_multiPlotWidgets;
-    QVector<JSON::Group *> m_gyroscopeWidgets;
-    QVector<JSON::Group *> m_accelerometerWidgets;
+    QVector<JSON::Group> m_ledWidgets;
+    QVector<JSON::Group> m_gpsWidgets;
+    QVector<JSON::Group> m_groupWidgets;
+    QVector<JSON::Group> m_multiPlotWidgets;
+    QVector<JSON::Group> m_gyroscopeWidgets;
+    QVector<JSON::Group> m_accelerometerWidgets;
 
-    JSON::Frame m_latestFrame;
-    QVector<JFI_Object> m_jsonList;
+    JSON::Frame m_currentFrame;
 };
 }

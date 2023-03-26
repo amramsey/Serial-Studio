@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021 Alex Spataru <https://github.com/alex-spataru>
+ * Copyright (c) 2020-2023 Alex Spataru <https://github.com/alex-spataru>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -20,12 +20,11 @@
  * THE SOFTWARE.
  */
 
-import QtQuick 2.12
-import QtQuick.Window 2.12
-import QtQuick.Layouts 1.12
-import QtQuick.Controls 2.12
-
-import Qt.labs.settings 1.0
+import QtQuick
+import QtQuick.Window
+import QtQuick.Layouts
+import QtQuick.Controls
+import Qt.labs.settings
 
 import "../FramelessWindow" as FramelessWindow
 
@@ -43,9 +42,9 @@ FramelessWindow.CustomWindow {
     width: minimumWidth
     height: minimumHeight
     title: qsTr("MQTT Configuration")
-    extraFlags: Qt.WindowStaysOnTopHint
     x: (Screen.desktopAvailableWidth - width) / 2
     y: (Screen.desktopAvailableHeight - height) / 2
+    extraFlags: Qt.Dialog | Qt.WindowCloseButtonHint | Qt.WindowTitleHint
     minimumWidth: column.implicitWidth + 4 * app.spacing + 2 * root.shadowMargin
     maximumWidth: column.implicitWidth + 4 * app.spacing + 2 * root.shadowMargin
     minimumHeight: column.implicitHeight + 4 * app.spacing + titlebar.height + 2 * root.shadowMargin
@@ -106,21 +105,6 @@ FramelessWindow.CustomWindow {
                     top: parent.top
                     left: parent.left
                     right: parent.right
-                }
-            }
-        }
-
-        //
-        // Window drag handler
-        //
-        Item {
-            anchors.fill: parent
-
-            DragHandler {
-                grabPermissions: TapHandler.TakeOverForbidden
-                onActiveChanged: {
-                    if (active)
-                        root.startSystemMove()
                 }
             }
         }

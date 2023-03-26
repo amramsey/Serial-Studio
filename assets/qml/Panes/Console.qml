@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021 Alex Spataru <https://github.com/alex-spataru>
+ * Copyright (c) 2020-2023 Alex Spataru <https://github.com/alex-spataru>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -20,9 +20,10 @@
  * THE SOFTWARE.
  */
 
-import QtQuick 2.12
-import QtQuick.Layouts 1.12
-import QtQuick.Controls 2.12
+import QtQuick
+import QtQuick.Layouts
+import QtQuick.Controls
+
 import "../Widgets" as Widgets
 
 Item {
@@ -62,22 +63,6 @@ Item {
         function onLanguageChanged() {
             root.showWelcomeGuide()
         }
-    }
-
-    //
-    // Remove selection
-    //
-    Shortcut {
-        sequence: "escape"
-        onActivated: textEdit.clearSelection()
-    }
-
-    //
-    // Window shadow (must go before window declaration
-    // to avoid blurry artifacts & glitches).
-    //
-    Widgets.Shadow {
-        anchors.fill: window
     }
 
     //

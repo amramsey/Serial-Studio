@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021 Alex Spataru <https://github.com/alex-spataru>
+ * Copyright (c) 2020-2023 Alex Spataru <https://github.com/alex-spataru>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -20,59 +20,59 @@
  * THE SOFTWARE.
  */
 
-import QtQuick 2.12
-import QtQuick.Layouts 1.12
-import QtQuick.Controls 2.12
+import QtQuick
+import QtQuick.Layouts
+import QtQuick.Controls
 
 DropArea {
     //
     // Show rectangle and set color based on file extension on drag enter
     //
-    onEntered: (drag) => {
-                   // Get file name & set color of rectangle accordingly
-                   if (drag.urls.length > 0) {
-                       var path = drag.urls[0].toString()
-                       if (path.endsWith(".json") || path.endsWith(".csv")) {
-                           drag.accept(Qt.LinkAction)
-                           dropRectangle.color = Qt.darker(palette.highlight, 1.4)
-                       }
+    onEntered: {
+        // Get file name & set color of rectangle accordingly
+        if (drag.urls.length > 0) {
+            var path = drag.urls[0].toString()
+            if (path.endsWith(".json") || path.endsWith(".csv")) {
+                drag.accept(Qt.LinkAction)
+                dropRectangle.color = Qt.darker(palette.highlight, 1.4)
+            }
 
-                       // Invalid file name, show red rectangle
-                       else
-                       dropRectangle.color = Cpp_ThemeManager.alternativeHighlight
+            // Invalid file name, show red rectangle
+            else
+                dropRectangle.color = Cpp_ThemeManager.alternativeHighlight
 
-                       // Show drag&drop rectangle
-                       dropRectangle.opacity = 0.8
-                   }
-               }
+            // Show drag&drop rectangle
+            dropRectangle.opacity = 0.8
+        }
+    }
 
     //
     // Open *.json & *.csv files on drag drop
     //
-    onDropped: (drop) => {
-                   // Hide rectangle
-                   dropRectangle.hide()
+    onDropped: {
+        // Hide rectangle
+        dropRectangle.hide()
 
-                   // Get dropped file URL and remove prefixed "file://"
-                   var path = drop.urls[0].toString()
-                   if (!Cpp_IsWin)
-                   path = path.replace(/^(file:\/{2})/,"");
-                   else
-                   path = path.replace(/^(file:\/{3})/,"");
+        // Get dropped file URL and remove prefixed "file://"
+        var path = drop.urls[0].toString()
+        if (!Cpp_IsWin)
+            path = path.replace(/^(file:\/{2})/,"");
+        else
+            path = path.replace(/^(file:\/{3})/,"");
 
-                   // Unescape html codes like '%23' for '#'
-                   var cleanPath = decodeURIComponent(path);
+        // Unescape html codes like '%23' for '#'
+        var cleanPath = decodeURIComponent(path);
 
-                   // Process JSON files
-                   if (cleanPath.endsWith(".json")) {
-                       Cpp_JSON_Generator.setOperationMode(0)
-                       Cpp_JSON_Generator.loadJsonMap(cleanPath)
-                   }
+        // Process JSON files
+        if (cleanPath.endsWith(".json")) {
+            Cpp_JSON_Generator.setOperationMode(0)
+            Cpp_JSON_Generator.loadJsonMap(cleanPath)
+        }
 
-                   // Process CSV files
-                   else if (cleanPath.endsWith(".csv"))
-                   Cpp_CSV_Player.openFile(cleanPath)
-               }
+        // Process CSV files
+        else if (cleanPath.endsWith(".csv"))
+            Cpp_CSV_Player.openFile(cleanPath)
+    }
 
     //
     // Hide drag & drop rectangle on drag exit

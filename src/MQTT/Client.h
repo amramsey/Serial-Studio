@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021 Alex Spataru <https://github.com/alex-spataru>
+ * Copyright (c) 2020-2023 Alex Spataru <https://github.com/alex-spataru>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -155,8 +155,17 @@ Q_SIGNALS:
     void mqttVersionChanged();
     void lookupActiveChanged();
 
+private:
+    explicit Client();
+    Client(Client &&) = delete;
+    Client(const Client &) = delete;
+    Client &operator=(Client &&) = delete;
+    Client &operator=(const Client &) = delete;
+
+    ~Client();
+
 public:
-    static Client *getInstance();
+    static Client &instance();
 
     quint8 qos() const;
     bool retain() const;
@@ -203,10 +212,6 @@ public Q_SLOTS:
     void setKeepAlive(const quint16 keepAlive);
     void setMqttVersion(const int versionIndex);
 
-private:
-    Client();
-    ~Client();
-
 private Q_SLOTS:
     void sendData();
     void resetStatistics();
@@ -227,9 +232,9 @@ private:
     bool m_lookupActive;
     QString m_caFilePath;
     quint16 m_sentMessages;
-    QMQTT::Client *m_client;
-    QVector<QByteArray> m_frames;
     MQTTClientMode m_clientMode;
+    QVector<QByteArray> m_frames;
+    QPointer<QMQTT::Client> m_client;
     QSslConfiguration m_sslConfiguration;
 };
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021 Alex Spataru <https://github.com/alex-spataru>
+ * Copyright (c) 2020-2023 Alex Spataru <https://github.com/alex-spataru>
  * Copyright (c) 2021 JP Norair <https://github.com/jpnorair>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -21,18 +21,13 @@
  * THE SOFTWARE.
  */
 
-#include "Manager.h"
-#include "Checksum.h"
+#include <IO/Manager.h>
+#include <IO/Checksum.h>
+#include <IO/Drivers/Serial.h>
+#include <IO/Drivers/Network.h>
+#include <IO/Drivers/BluetoothLE.h>
 
 #include <MQTT/Client.h>
-#include <IO/DataSources/Serial.h>
-#include <IO/DataSources/Network.h>
-
-#include <QNetworkDatagram>
-
-namespace IO
-{
-static Manager *MANAGER = Q_NULLPTR;
 
 /**
  * Adds support for C escape sequences to the given @a str.
@@ -58,49 +53,42 @@ static QString ADD_ESCAPE_SEQUENCES(const QString &str)
 /**
  * Constructor function
  */
-Manager::Manager()
+IO::Manager::Manager()
     : m_enableCrc(false)
     , m_writeEnabled(true)
     , m_maxBufferSize(1024 * 1024)
-    , m_device(Q_NULLPTR)
-    , m_dataSource(DataSource::Serial)
+    , m_driver(Q_NULLPTR)
     , m_receivedBytes(0)
     , m_startSequence("/*")
     , m_finishSequence("*/")
     , m_separatorSequence(",")
 {
-    setWatchdogInterval(10000);
+    // Set initial settings
     setMaxBufferSize(1024 * 1024);
+    setSelectedDriver(SelectedDriver::Serial);
 
-    // Configure signals/slots
-    const auto serial = DataSources::Serial::getInstance();
-    const auto netwrk = DataSources::Network::getInstance();
-    connect(netwrk, SIGNAL(portChanged()), this, SIGNAL(configurationChanged()));
-    connect(netwrk, SIGNAL(addressChanged()), this, SIGNAL(configurationChanged()));
-    connect(this, SIGNAL(dataSourceChanged()), this, SIGNAL(configurationChanged()));
-    connect(serial, SIGNAL(portIndexChanged()), this, SIGNAL(configurationChanged()));
+    // clang-format off
+
+    // Update connect button status when device type is changed
+    connect(this, &IO::Manager::selectedDriverChanged,
+            this, &IO::Manager::configurationChanged);
+
+    // clang-format on
 }
-
-/**
- * Destructor function
- */
-Manager::~Manager() { }
 
 /**
  * Returns the only instance of the class
  */
-Manager *Manager::getInstance()
+IO::Manager &IO::Manager::instance()
 {
-    if (!MANAGER)
-        MANAGER = new Manager;
-
-    return MANAGER;
+    static Manager singleton;
+    return singleton;
 }
 
 /**
  * Returns @c true if a device is connected and its open in read-only mode
  */
-bool Manager::readOnly()
+bool IO::Manager::readOnly()
 {
     return connected() && !m_writeEnabled;
 }
@@ -108,7 +96,7 @@ bool Manager::readOnly()
 /**
  * Returns @c true if a device is connected and its open in read/write mode
  */
-bool Manager::readWrite()
+bool IO::Manager::readWrite()
 {
     return connected() && m_writeEnabled;
 }
@@ -117,58 +105,31 @@ bool Manager::readWrite()
  * Returns @c true if a device is currently selected and opened or if the MQTT client
  * is currently connected as a subscriber.
  */
-bool Manager::connected()
+bool IO::Manager::connected()
 {
-    if (device())
-        return device()->isOpen();
+    if (driver())
+        return driver()->isOpen();
 
-    return MQTT::Client::getInstance()->isSubscribed();
+    return MQTT::Client::instance().isSubscribed();
 }
 
 /**
  * Returns @c true if a device is currently selected
  */
-bool Manager::deviceAvailable()
+bool IO::Manager::deviceAvailable()
 {
-    return device() != Q_NULLPTR;
+    return driver() != Q_NULLPTR;
 }
 
 /**
  * Returns @c true if we are able to connect to a device/port with the current config.
  */
-bool Manager::configurationOk() const
+bool IO::Manager::configurationOk()
 {
-    if (dataSource() == DataSource::Serial)
-        return DataSources::Serial::getInstance()->configurationOk();
-    else if (dataSource() == DataSource::Network)
-        return DataSources::Network::getInstance()->configurationOk();
+    if (driver())
+        return driver()->configurationOk();
 
     return false;
-}
-
-/**
- * Returns the interval of the watchdog in milliseconds. The watchdog is used to clear
- * the data buffer if no data has been received in more than x milliseconds (default
- * 15 ms, tested on a 300 baud rate MCU).
- *
- * This is useful for: a) Dealing when a device suddenly is disconnected
- *                     b) Removing extra data between received frames
- *
- * Example:
- *
- *      RRRRRRRRR  watchdog clears buf.  RRRRRRRRR  watchdog clear buf.   RRRRRRRR
- *     [--------] . - . - . - . - . - . [--------] . - . - . - . - . - . [--------]
- *      Frame A   Interval of > 15 ms    Frame B   Interval of > 15 ms    Frame C
- *
- *  Note: in the representation above "R" means that the watchdog is reset, thus, the
- *        data buffer is not cleared until we wait for another frame or communications
- *        are interrupted.
- *
- * TODO: let the JSON project file define the watchdog timeout time.
- */
-int Manager::watchdogInterval() const
-{
-    return m_watchdog.interval();
 }
 
 /**
@@ -176,20 +137,20 @@ int Manager::watchdogInterval() const
  * memory when a large block of invalid data is received (for example, when the user
  * selects an invalid baud rate configuration).
  */
-int Manager::maxBufferSize() const
+int IO::Manager::maxBufferSize() const
 {
     return m_maxBufferSize;
 }
 
 /**
- * Returns a pointer to the currently selected device.
+ * Returns a pointer to the currently selected driver.
  *
  * @warning you need to check this pointer before using it, it can have a @c Q_NULLPTR
  *          value during normal operations.
  */
-QIODevice *Manager::device()
+IO::HAL_Driver *IO::Manager::driver()
 {
-    return m_device;
+    return m_driver;
 }
 
 /**
@@ -197,9 +158,9 @@ QIODevice *Manager::device()
  * - @c DataSource::Serial  use a serial port as a data source
  * - @c DataSource::Network use a network port as a data source
  */
-Manager::DataSource Manager::dataSource() const
+IO::Manager::SelectedDriver IO::Manager::selectedDriver() const
 {
-    return m_dataSource;
+    return m_selectedDriver;
 }
 
 /**
@@ -207,7 +168,7 @@ Manager::DataSource Manager::dataSource() const
  * that a frame begins. If the start sequence is empty, then the application shall ignore
  * incoming data. The only thing that wont ignore the incoming data will be the console.
  */
-QString Manager::startSequence() const
+QString IO::Manager::startSequence() const
 {
     return m_startSequence;
 }
@@ -217,7 +178,7 @@ QString Manager::startSequence() const
  * that a frame ends. If the start sequence is empty, then the application shall ignore
  * incoming data. The only thing that wont ignore the incoming data will be the console.
  */
-QString Manager::finishSequence() const
+QString IO::Manager::finishSequence() const
 {
     return m_finishSequence;
 }
@@ -226,7 +187,7 @@ QString Manager::finishSequence() const
  * Returns the separator sequence string used by the application to know where to consider
  * that a data item ends.
  */
-QString Manager::separatorSequence() const
+QString IO::Manager::separatorSequence() const
 {
     return m_separatorSequence;
 }
@@ -234,11 +195,12 @@ QString Manager::separatorSequence() const
 /**
  * Returns a list with the possible data source options.
  */
-StringList Manager::dataSourcesList() const
+StringList IO::Manager::availableDrivers() const
 {
     StringList list;
     list.append(tr("Serial port"));
     list.append(tr("Network port"));
+    list.append(tr("Bluetooth LE device"));
     return list;
 }
 
@@ -247,35 +209,12 @@ StringList Manager::dataSourcesList() const
  *
  * @returns the number of bytes written to the target device
  */
-qint64 Manager::writeData(const QByteArray &data)
+qint64 IO::Manager::writeData(const QByteArray &data)
 {
     if (connected())
     {
-        qint64 bytes = 0;
-
-        // Check which data source to use to write data
-        if (dataSource() == DataSource::Network)
-        {
-            auto network = DataSources::Network::getInstance();
-
-            // Write to UDP socket
-            if (network->socketType() == QAbstractSocket::UdpSocket)
-            {
-                bytes = network->udpSocket()->writeDatagram(
-                    data, QHostAddress(network->remoteAddress()),
-                    network->udpRemotePort());
-            }
-
-            // Write to TCP socket
-            else
-            {
-                bytes = network->tcpSocket()->write(data);
-            }
-        }
-
-        // Write to serial device
-        else
-            bytes = device()->write(data);
+        // Write data to device
+        auto bytes = driver()->write(data);
 
         // Show sent data in console
         if (bytes > 0)
@@ -296,10 +235,10 @@ qint64 Manager::writeData(const QByteArray &data)
  * Connects/disconnects the application from the currently selected device. This function
  * is used as a convenience for the connect/disconnect button.
  */
-void Manager::toggleConnection()
+void IO::Manager::toggleConnection()
 {
     if (connected())
-        disconnectDevice();
+        disconnectDriver();
     else
         connectDevice();
 }
@@ -308,18 +247,10 @@ void Manager::toggleConnection()
  * Closes the currently selected device and tries to open & configure a new connection.
  * A data source must be selected before calling this function.
  */
-void Manager::connectDevice()
+void IO::Manager::connectDevice()
 {
-    // Disconnect previous device (if any)
-    disconnectDevice();
-
-    // Try to open a serial port connection
-    if (dataSource() == DataSource::Serial)
-        setDevice(DataSources::Serial::getInstance()->openSerialPort());
-
-    // Try to open a network connection
-    else if (dataSource() == DataSource::Network)
-        setDevice(DataSources::Network::getInstance()->openNetworkPort());
+    // Reset driver
+    setSelectedDriver(selectedDriver());
 
     // Configure current device
     if (deviceAvailable())
@@ -330,12 +261,15 @@ void Manager::connectDevice()
             mode = QIODevice::ReadWrite;
 
         // Open device
-        if (device()->open(mode))
-            connect(device(), &QIODevice::readyRead, this, &Manager::onDataReceived);
+        if (driver()->open(mode))
+        {
+            connect(driver(), &IO::HAL_Driver::dataReceived, this,
+                    &IO::Manager::onDataReceived);
+        }
 
         // Error opening the device
         else
-            disconnectDevice();
+            disconnectDriver();
 
         // Update UI
         Q_EMIT connectedChanged();
@@ -345,27 +279,27 @@ void Manager::connectDevice()
 /**
  * Disconnects from the current device and clears temp. data
  */
-void Manager::disconnectDevice()
+void IO::Manager::disconnectDriver()
 {
     if (deviceAvailable())
     {
         // Disconnect device signals/slots
-        device()->disconnect(this, SLOT(onDataReceived()));
+        disconnect(driver(), &IO::HAL_Driver::dataReceived, this,
+                   &IO::Manager::onDataReceived);
+        disconnect(driver(), &IO::HAL_Driver::configurationChanged, this,
+                   &IO::Manager::configurationChanged);
 
-        // Call-appropiate interface functions
-        if (dataSource() == DataSource::Serial)
-            DataSources::Serial::getInstance()->disconnectDevice();
-        else if (dataSource() == DataSource::Network)
-            DataSources::Network::getInstance()->disconnectDevice();
+        // Close driver device
+        driver()->close();
 
         // Update device pointer
-        m_device = Q_NULLPTR;
+        m_driver = Q_NULLPTR;
         m_receivedBytes = 0;
         m_dataBuffer.clear();
         m_dataBuffer.reserve(maxBufferSize());
 
         // Update UI
-        Q_EMIT deviceChanged();
+        Q_EMIT driverChanged();
         Q_EMIT connectedChanged();
     }
 
@@ -376,7 +310,7 @@ void Manager::disconnectDevice()
 /**
  * Enables/disables RW mode
  */
-void Manager::setWriteEnabled(const bool enabled)
+void IO::Manager::setWriteEnabled(const bool enabled)
 {
     m_writeEnabled = enabled;
     Q_EMIT writeEnabledChanged();
@@ -386,13 +320,10 @@ void Manager::setWriteEnabled(const bool enabled)
  * Reads the given payload and emits it as if it were received from a device.
  * This function is for convenience to interact with other application modules & plugins.
  */
-void Manager::processPayload(const QByteArray &payload)
+void IO::Manager::processPayload(const QByteArray &payload)
 {
     if (!payload.isEmpty())
     {
-        // Reset watchdog
-        feedWatchdog();
-
         // Update received bytes indicator
         m_receivedBytes += payload.size();
         if (m_receivedBytes >= UINT64_MAX)
@@ -409,7 +340,7 @@ void Manager::processPayload(const QByteArray &payload)
  * Changes the maximum permited buffer size. Check the @c maxBufferSize() function for
  * more information.
  */
-void Manager::setMaxBufferSize(const int maxBufferSize)
+void IO::Manager::setMaxBufferSize(const int maxBufferSize)
 {
     m_maxBufferSize = maxBufferSize;
     Q_EMIT maxBufferSizeChanged();
@@ -421,7 +352,7 @@ void Manager::setMaxBufferSize(const int maxBufferSize)
  * Changes the frame start sequence. Check the @c startSequence() function for more
  * information.
  */
-void Manager::setStartSequence(const QString &sequence)
+void IO::Manager::setStartSequence(const QString &sequence)
 {
     m_startSequence = ADD_ESCAPE_SEQUENCES(sequence);
     if (m_startSequence.isEmpty())
@@ -434,7 +365,7 @@ void Manager::setStartSequence(const QString &sequence)
  * Changes the frame end sequence. Check the @c finishSequence() function for more
  * information.
  */
-void Manager::setFinishSequence(const QString &sequence)
+void IO::Manager::setFinishSequence(const QString &sequence)
 {
     m_finishSequence = ADD_ESCAPE_SEQUENCES(sequence);
     if (m_finishSequence.isEmpty())
@@ -447,7 +378,7 @@ void Manager::setFinishSequence(const QString &sequence)
  * Changes the frame separator sequence. Check the @c separatorSequence() function for
  * more information.
  */
-void Manager::setSeparatorSequence(const QString &sequence)
+void IO::Manager::setSeparatorSequence(const QString &sequence)
 {
     m_separatorSequence = ADD_ESCAPE_SEQUENCES(sequence);
     if (m_separatorSequence.isEmpty())
@@ -457,28 +388,37 @@ void Manager::setSeparatorSequence(const QString &sequence)
 }
 
 /**
- * Changes the expiration interval of the watchdog timer. Check the @c watchdogInterval()
- * function for more information.
- */
-void Manager::setWatchdogInterval(const int interval)
-{
-    m_watchdog.setInterval(interval);
-    m_watchdog.setTimerType(Qt::PreciseTimer);
-    Q_EMIT watchdogIntervalChanged();
-}
-
-/**
  * Changes the data source type. Check the @c dataSource() funciton for more information.
  */
-void Manager::setDataSource(const IO::Manager::DataSource &source)
+void IO::Manager::setSelectedDriver(const IO::Manager::SelectedDriver &driver)
 {
-    // Disconnect current device
-    if (connected())
-        disconnectDevice();
+    // Disconnect current driver
+    disconnectDriver();
 
     // Change data source
-    m_dataSource = source;
-    Q_EMIT dataSourceChanged();
+    m_selectedDriver = driver;
+
+    // Disconnect previous device (if any)
+    disconnectDriver();
+
+    // Try to open a serial port connection
+    if (selectedDriver() == SelectedDriver::Serial)
+        setDriver(&(Drivers::Serial::instance()));
+
+    // Try to open a network connection
+    else if (selectedDriver() == SelectedDriver::Network)
+        setDriver(&(Drivers::Network::instance()));
+
+    // Try to open a BLE connection
+    else if (selectedDriver() == SelectedDriver::BluetoothLE)
+        setDriver(&(Drivers::BluetoothLE::instance()));
+
+    // Invalid driver
+    else
+        setDriver(Q_NULLPTR);
+
+    // Update UI
+    Q_EMIT selectedDriverChanged();
 }
 
 /**
@@ -490,7 +430,7 @@ void Manager::setDataSource(const IO::Manager::DataSource &source)
  *
  * Implemementation credits: @jpnorair and @alex-spataru
  */
-void Manager::readFrames()
+void IO::Manager::readFrames()
 {
     // No device connected, abort
     if (!connected())
@@ -500,8 +440,8 @@ void Manager::readFrames()
     auto bytes = 0;
     auto prevBytes = 0;
     auto cursor = m_dataBuffer;
-    const auto start = startSequence().toUtf8();
-    const auto finish = finishSequence().toUtf8();
+    auto start = startSequence().toUtf8();
+    auto finish = finishSequence().toUtf8();
     while (cursor.contains(start) && cursor.contains(finish))
     {
         // Remove the part of the buffer prior to, and including, the start sequence.
@@ -513,26 +453,34 @@ void Manager::readFrames()
         auto fIndex = cursor.indexOf(finish);
         auto frame = cursor.left(fIndex);
 
-        // Checksum verification & Q_EMIT RX frame
-        int chop = 0;
-        const auto result = integrityChecks(frame, cursor, &chop);
-        if (result == ValidationStatus::FrameOk)
-            Q_EMIT frameReceived(frame);
-
-        // Checksum data incomplete, try next time...
-        else if (result == ValidationStatus::ChecksumIncomplete)
+        // Parse frame
+        if (!frame.isEmpty())
         {
-            bytes = prevBytes;
-            break;
+            // Checksum verification & Q_EMIT RX frame
+            int chop = 0;
+            auto result = integrityChecks(frame, cursor, &chop);
+            if (result == ValidationStatus::FrameOk)
+                Q_EMIT frameReceived(frame);
+
+            // Checksum data incomplete, try next time...
+            else if (result == ValidationStatus::ChecksumIncomplete)
+            {
+                bytes = prevBytes;
+                break;
+            }
+
+            // Remove the data including the finish sequence from the master buffer
+            cursor = cursor.mid(fIndex + chop, -1);
+            bytes += fIndex + chop;
+
+            // Frame read successfully, save the number of bytes to chop.
+            // This is used to manage frames with incomplete checksums
+            prevBytes = bytes;
         }
 
-        // Remove the data including the finish sequence from the master buffer
-        cursor = cursor.mid(fIndex + chop, -1);
-        bytes += fIndex + chop;
-
-        // Frame read successfully, save the number of bytes to chop.
-        // This is used to manage frames with incomplete checksums
-        prevBytes = bytes;
+        // Frame empty, wait for more data...
+        else
+            bytes = prevBytes;
     }
 
     // Remove parsed data from master buffer
@@ -544,57 +492,44 @@ void Manager::readFrames()
 }
 
 /**
- * Resets the watchdog timer before it expires. Check the @c watchdogInterval() function
- * for more information.
+ * Deletes the contents of the temporary buffer. This function is called automatically by
+ * the class when the temporary buffer size exceeds the limit imposed by the
+ * @c maxBufferSize() function.
  */
-void Manager::feedWatchdog()
+void IO::Manager::clearTempBuffer()
 {
-    m_watchdog.stop();
-    m_watchdog.start();
+    m_dataBuffer.clear();
 }
 
 /**
- * Reads incoming data from the serial device, updates the serial console object,
- * registers incoming data to temporary buffer & extracts valid data frames from the
- * buffer using the @c readFrame() function.
+ * Changes the target device pointer. Deletion should be handled by the interface
+ * implementation, not by this class.
  */
-void Manager::onDataReceived()
+void IO::Manager::setDriver(HAL_Driver *driver)
+{
+    if (driver)
+        connect(driver, &IO::HAL_Driver::configurationChanged, this,
+                &IO::Manager::configurationChanged);
+
+    m_driver = driver;
+
+    Q_EMIT driverChanged();
+    Q_EMIT configurationChanged();
+}
+
+/**
+ * Reads incoming data from the I/O device, updates the console object, registers incoming
+ * data to temporary buffer & extracts valid data frames from the buffer using the @c
+ * readFrame() function.
+ */
+void IO::Manager::onDataReceived(const QByteArray &data)
 {
     // Verify that device is still valid
-    if (!device())
-        disconnectDevice();
-
-    // Initialize byte array
-    QByteArray data;
-    bool udpConnection = false;
-
-    // Check if we need to use UDP socket functions
-    if (dataSource() == DataSource::Network)
-    {
-        auto network = DataSources::Network::getInstance();
-        if (network->socketType() == QAbstractSocket::UdpSocket)
-        {
-            udpConnection = true;
-            const auto udpSocket = network->udpSocket();
-            while (udpSocket->hasPendingDatagrams())
-            {
-                QByteArray datagram;
-                datagram.resize(int(udpSocket->pendingDatagramSize()));
-                udpSocket->readDatagram(datagram.data(), datagram.size());
-                data.append(datagram);
-            }
-        }
-    }
-
-    // We are using the TCP socket or the serial port
-    if (!udpConnection)
-        data = device()->readAll();
+    if (!driver())
+        disconnectDriver();
 
     // Read data & append it to buffer
     auto bytes = data.length();
-
-    // Feed watchdog (so that data is not cleared automatically)
-    feedWatchdog();
 
     // Obtain frames from data buffer
     m_dataBuffer.append(data);
@@ -611,36 +546,6 @@ void Manager::onDataReceived()
 }
 
 /**
- * Deletes the contents of the temporary buffer. This function is called automatically by
- * the class when the temporary buffer size exceeds the limit imposed by the
- * @c maxBufferSize() function.
- */
-void Manager::clearTempBuffer()
-{
-    m_dataBuffer.clear();
-}
-
-/**
- * Called when the watchdog timer expires. For the moment, this function only clears the
- * temporary data buffer.
- */
-void Manager::onWatchdogTriggered()
-{
-    clearTempBuffer();
-}
-
-/**
- * Changes the target device pointer. Deletion should be handled by the interface
- * implementation, not by this class.
- */
-void Manager::setDevice(QIODevice *device)
-{
-    disconnectDevice();
-    m_device = device;
-    Q_EMIT deviceChanged();
-}
-
-/**
  * Checks if the @c cursor has a checksum corresponding to the given @a frame.
  * If so, the function shall calculate the appropiate checksum to for the @a frame and
  * compare it with the received checksum to verify the integrity of received data.
@@ -649,21 +554,22 @@ void Manager::setDevice(QIODevice *device)
  * @param cursor master buffer, should start with checksum type header
  * @param bytes pointer to the number of bytes that we need to chop from the master buffer
  */
-Manager::ValidationStatus Manager::integrityChecks(const QByteArray &frame,
-                                                   const QByteArray &cursor, int *bytes)
+IO::Manager::ValidationStatus IO::Manager::integrityChecks(const QByteArray &frame,
+                                                           const QByteArray &cursor,
+                                                           int *bytes)
 {
     // Get finish sequence as byte array
-    const auto finish = finishSequence().toUtf8();
-    const auto crc8Header = finish + "crc8:";
-    const auto crc16Header = finish + "crc16:";
-    const auto crc32Header = finish + "crc32:";
+    auto finish = finishSequence().toUtf8();
+    auto crc8Header = finish + "crc8:";
+    auto crc16Header = finish + "crc16:";
+    auto crc32Header = finish + "crc32:";
 
     // Check CRC-8
     if (cursor.contains(crc8Header))
     {
         // Enable the CRC flag
         m_enableCrc = true;
-        const auto offset = cursor.indexOf(crc8Header) + crc8Header.length() - 1;
+        auto offset = cursor.indexOf(crc8Header) + crc8Header.length() - 1;
 
         // Check if we have enough data in the buffer
         if (cursor.length() >= offset + 1)
@@ -687,7 +593,7 @@ Manager::ValidationStatus Manager::integrityChecks(const QByteArray &frame,
     {
         // Enable the CRC flag
         m_enableCrc = true;
-        const auto offset = cursor.indexOf(crc16Header) + crc16Header.length() - 1;
+        auto offset = cursor.indexOf(crc16Header) + crc16Header.length() - 1;
 
         // Check if we have enough data in the buffer
         if (cursor.length() >= offset + 2)
@@ -713,7 +619,7 @@ Manager::ValidationStatus Manager::integrityChecks(const QByteArray &frame,
     {
         // Enable the CRC flag
         m_enableCrc = true;
-        const auto offset = cursor.indexOf(crc32Header) + crc32Header.length() - 1;
+        auto offset = cursor.indexOf(crc32Header) + crc32Header.length() - 1;
 
         // Check if we have enough data in the buffer
         if (cursor.length() >= offset + 4)
@@ -746,4 +652,7 @@ Manager::ValidationStatus Manager::integrityChecks(const QByteArray &frame,
     // Checksum data incomplete
     return ValidationStatus::ChecksumIncomplete;
 }
-}
+
+#ifdef SERIAL_STUDIO_INCLUDE_MOC
+#    include "moc_Manager.cpp"
+#endif

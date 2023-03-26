@@ -4,8 +4,9 @@
 
 # Serial Studio
 
-[![Build Status](https://github.com/Serial-Studio/Serial-Studio/workflows/Deploy/badge.svg)](https://github.com/Serial-Studio/Serial-Studio/actions/)
-[![CodeQL](https://github.com/Serial-Studio/Serial-Studio/workflows/CodeQL/badge.svg)](https://github.com/Serial-Studio/Serial-Studio/actions?query=workflow%3ACodeQL)
+[![Github commits](https://img.shields.io/github/last-commit/Serial-Studio/Serial-Studio)](https://github.com/Serial-Studio/Serial-Studio/commits/master)
+[![GitHub contributors](https://img.shields.io/github/contributors/Serial-Studio/Serial-Studio)](https://github.com/Serial-Studio/Serial-Studio/graphs/contributors)
+[![PR's Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat)](https://github.com/Serial-Studio/Serial-Studio/pull/new)
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/4b6f3ce14a684704980fea31d8c1632e)](https://www.codacy.com/gh/Serial-Studio/Serial-Studio/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=Serial-Studio/Serial-Studio&amp;utm_campaign=Badge_Grade)
 [![Github All Releases](https://img.shields.io/github/downloads/Serial-Studio/Serial-Studio/total.svg)](https://github.com/Serial-Studio/Serial-Studio/releases/)
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-v1.4%20adopted-ff69b4.svg)](CODE_OF_CONDUCT.md)
@@ -15,7 +16,7 @@ Serial Studio es un programa de visualización de datos de puertos serial multip
 
 La necesidad de este proyecto surgió durante el desarrollo del software de estación terrena para varios concursos de CanSat. Simplemente no es sostenible desarrollar y mantener diferentes programas para cada competencia. La solución inteligente es tener un software de estación terrena común y permitir que cada CanSat defina cómo se presentan los datos al usuario final mediante un protocolo de comunicación extensible.
 
-Además, este enfoque se puede extender a casi cualquier tipo de proyecto que implique algún tipo de adquisición y medición de datos. Si desea una explicación más detallada de por qué existe este proyecto y de qué se trata, consulte [esta publicación de blog](https://www.alex-spataru.com/blog/introducing-serial-studio) (en inglés).
+Además, este enfoque se puede extender a casi cualquier tipo de proyecto que implique algún tipo de adquisición y medición de datos.
 
 **NOTA:** en el [wiki](https://github.com/Serial-Studio/Serial-Studio/wiki/Protocolo-de-Comunicación) se muestra más información acerca del protocolo de comunicación utilizado por Serial Studio.
 
@@ -87,6 +88,12 @@ Alternativamente, también puede utilizar los siguientes comandos:
 
 	qmake
 	make -j4
+	
+### Arquitectura de software
+
+A continuación se muestra un diagrama simplificado que explica cómo los diferentes módulos de Serial Studio interactúan entre sí. Puedes encontrar la documentación DOXYGEN haciendo clic [aquí](https://serial-studio.github.io/hackers/).
+
+![Architecture](architecture/architecture.png)
 	
 ## Donaciones
 

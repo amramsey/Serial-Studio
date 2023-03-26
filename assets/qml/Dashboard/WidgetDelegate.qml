@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Alex Spataru <https://github.com/alex-spataru>
+ * Copyright (c) 2021-2023 Alex Spataru <https://github.com/alex-spataru>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -20,11 +20,12 @@
  * THE SOFTWARE.
  */
 
-import QtQuick 2.12
-import QtQuick.Layouts 1.12
-import QtQuick.Controls 2.12
+import QtQuick
+import QtQuick.Layouts
+import QtQuick.Controls
 
-import SerialStudio 1.0
+import SerialStudio
+
 import "../Widgets" as Widgets
 import "../FramelessWindow" as FramelessWindow
 
@@ -37,8 +38,8 @@ Item {
     Widgets.Window {
         id: window
         anchors.fill: parent
-        title: loader.widgetTitle
-        icon.source: loader.widgetIcon
+        title: widget.widgetTitle
+        icon.source: widget.widgetIcon
         headerDoubleClickEnabled: true
         borderColor: Cpp_ThemeManager.widgetWindowBorder
         onHeaderDoubleClicked: {
@@ -48,8 +49,8 @@ Item {
                 externalWindowLoader.active = true
         }
 
-        WidgetLoader {
-            id: loader
+        DashboardWidget {
+            id: widget
             widgetIndex: root.widgetIndex
             anchors {
                 fill: parent
@@ -70,12 +71,12 @@ Item {
             id: _window
             minimumWidth: 640 + shadowMargin
             minimumHeight: 480 + shadowMargin
-            title: externalLoader.widgetTitle
-            extraFlags: Qt.WindowStaysOnTopHint
+            title: externalWidget.widgetTitle
             titlebarText: Cpp_ThemeManager.text
             titlebarColor: Cpp_ThemeManager.widgetWindowBackground
             backgroundColor: Cpp_ThemeManager.widgetWindowBackground
             borderColor: isMaximized ? backgroundColor : Cpp_ThemeManager.highlight
+            extraFlags: Qt.WindowStaysOnTopHint | Qt.Dialog | Qt.WindowCloseButtonHint | Qt.WindowTitleHint
 
             Timer {
                 id: timer
@@ -106,8 +107,8 @@ Item {
                     }
                 }
 
-                WidgetLoader {
-                    id: externalLoader
+                DashboardWidget {
+                    id: externalWidget
                     anchors.fill: parent
                     isExternalWindow: true
                     widgetIndex: root.widgetIndex

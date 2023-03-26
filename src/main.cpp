@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021 Alex Spataru <https://github.com/alex-spataru>
+ * Copyright (c) 2020-2023 Alex Spataru <https://github.com/alex-spataru>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,15 +22,14 @@
 
 #include <QtQml>
 #include <QSysInfo>
+#include <QQuickStyle>
 #include <QApplication>
+#include <QStyleFactory>
 
 #include <AppInfo.h>
 #include <JSON/Frame.h>
 #include <Misc/Utilities.h>
 #include <Misc/ModuleManager.h>
-
-#include <QQuickStyle>
-#include <QStyleFactory>
 
 #ifdef Q_OS_WIN
 #    include <windows.h>
@@ -84,19 +83,7 @@ int main(int argc, char **argv)
     // Set application attributes
 #if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
     QApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
-#else
-    QApplication::setAttribute(Qt::AA_UseDesktopOpenGL);
 #endif
-
-    //
-    // Force non-threaded rendering to avoid ugly crashes.
-    //
-    // We need to do this because the only way to get QWidgets-based items to render on
-    // the QML interface is through the QQuickPaintedItem class, which can cause conflicts
-    // between the GUI and render threads when the rendered items need to work with
-    // signals/slots.
-    //
-    QApplication::setAttribute(Qt::AA_UseOpenGLES);
 
     // Init. application
     QApplication app(argc, argv);

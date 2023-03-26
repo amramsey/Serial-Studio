@@ -1,24 +1,24 @@
 {
    "updates":{
       "windows":{
-         "open-url":"https://github.com/Serial-Studio/Serial-Studio/releases/tag/v1.1.4",
-         "latest-version":"1.1.4",
-         "download-url":"",
-         "changelog":"",
+         "open-url":"",
+         "latest-version":"1.1.7",
+         "download-url":"https://github.com/Serial-Studio/Serial-Studio/releases/download/v1.1.7/SerialStudio-1.1.7-Windows.exe",
+         "changelog":"https://github.com/Serial-Studio/Serial-Studio/releases/tag/v1.1.7",
          "mandatory":false
       },
       "osx":{
-         "open-url":"https://github.com/Serial-Studio/Serial-Studio/releases/tag/v1.1.4",
-         "latest-version":"1.1.4",
-         "download-url":"",
-         "changelog":"",
+         "open-url":"",
+         "latest-version":"1.1.7",
+         "download-url":"https://github.com/Serial-Studio/Serial-Studio/releases/download/v1.1.7/SerialStudio-1.1.7-macOS.zip",
+         "changelog":"https://github.com/Serial-Studio/Serial-Studio/releases/tag/v1.1.7",
          "mandatory":false
       },
       "linux":{
-         "open-url":"https://github.com/Serial-Studio/Serial-Studio/releases/tag/v1.1.4",
-         "latest-version":"1.1.4",
-         "download-url":"",
-         "changelog":"",
+         "open-url":"",
+         "latest-version":"1.1.7",
+         "download-url":"https://github.com/Serial-Studio/Serial-Studio/releases/download/v1.1.7/SerialStudio-1.1.7-Linux.AppImage",
+         "changelog":"https://github.com/Serial-Studio/Serial-Studio/releases/tag/v1.1.7",
          "mandatory":false
       }
    }

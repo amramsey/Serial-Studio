@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021 Alex Spataru <https://github.com/alex-spataru>
+ * Copyright (c) 2020-2023 Alex Spataru <https://github.com/alex-spataru>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -20,8 +20,6 @@
  * THE SOFTWARE.
  */
 
-#include "ModuleManager.h"
-
 #include <AppInfo.h>
 
 #include <CSV/Export.h>
@@ -29,15 +27,17 @@
 
 #include <JSON/Frame.h>
 #include <JSON/Group.h>
-#include <JSON/Editor.h>
 #include <JSON/Dataset.h>
 #include <JSON/Generator.h>
-#include <JSON/FrameInfo.h>
+
+#include <Project/Model.h>
+#include <Project/CodeEditor.h>
 
 #include <IO/Manager.h>
 #include <IO/Console.h>
-#include <IO/DataSources/Serial.h>
-#include <IO/DataSources/Network.h>
+#include <IO/Drivers/Serial.h>
+#include <IO/Drivers/Network.h>
+#include <IO/Drivers/BluetoothLE.h>
 
 #include <Misc/MacExtras.h>
 #include <Misc/Utilities.h>
@@ -50,22 +50,20 @@
 #include <Plugins/Server.h>
 
 #include <UI/Dashboard.h>
-#include <UI/WidgetLoader.h>
-
-#include <Widgets/Terminal.h>
+#include <UI/DashboardWidget.h>
+#include <UI/Widgets/Terminal.h>
 
 #include <QQuickWindow>
 #include <QSimpleUpdater.h>
 
 /**
- * Configures the application font, creates a splash screen and configures
- * application signals/slots to destroy singleton classes before the application
- * quits.
+ * Configures the application font and configures application signals/slots to destroy
+ * singleton classes before the application quits.
  */
 Misc::ModuleManager::ModuleManager()
 {
-    // Init translator (so that splash screen displays text in user's language)
-    (void)Misc::Translator::getInstance();
+    // Init translator
+    (void)Misc::Translator::instance();
 
     // Load Roboto fonts from resources
     QFontDatabase::addApplicationFont(":/fonts/Roboto-Bold.ttf");
@@ -84,21 +82,12 @@ Misc::ModuleManager::ModuleManager()
 #endif
     qApp->setFont(font);
 
-    // Get splash screen image
-    QPixmap pixmap(":/images/splash@1x.png");
-    auto dpr = qApp->devicePixelRatio();
-    if (dpr > 1)
-    {
-        pixmap.load(":/images/splash@2x.png");
-        pixmap.setDevicePixelRatio(dpr);
-    }
-
-    // Show splash screen
-    m_splash.setPixmap(pixmap);
-    m_splash.show();
+    // Enable software rendering
+#ifdef SERIAL_STUDIO_SOFTWARE_RENDERING
+    QQuickWindow::setSceneGraphBackend(QSGRendererInterface::Software);
+#endif
 
     // Stop modules when application is about to quit
-    setSplashScreenMessage(tr("Initializing..."));
     connect(engine(), SIGNAL(quit()), this, SLOT(onQuit()));
 }
 
@@ -121,7 +110,6 @@ void Misc::ModuleManager::configureUpdater()
     if (!autoUpdaterEnabled())
         return;
 
-    setSplashScreenMessage(tr("Configuring updater..."));
     QSimpleUpdater::getInstance()->setNotifyOnUpdate(APP_UPDATER_URL, true);
     QSimpleUpdater::getInstance()->setNotifyOnFinish(APP_UPDATER_URL, false);
     QSimpleUpdater::getInstance()->setMandatoryUpdate(APP_UPDATER_URL, false);
@@ -135,11 +123,8 @@ void Misc::ModuleManager::configureUpdater()
  */
 void Misc::ModuleManager::registerQmlTypes()
 {
-    qRegisterMetaType<JFI_Object>("JFI_Object");
-    qmlRegisterType<JSON::Group>("SerialStudio", 1, 0, "Group");
-    qmlRegisterType<JSON::Dataset>("SerialStudio", 1, 0, "Dataset");
     qmlRegisterType<Widgets::Terminal>("SerialStudio", 1, 0, "Terminal");
-    qmlRegisterType<UI::WidgetLoader>("SerialStudio", 1, 0, "WidgetLoader");
+    qmlRegisterType<UI::DashboardWidget>("SerialStudio", 1, 0, "DashboardWidget");
 }
 
 /**
@@ -165,35 +150,45 @@ bool Misc::ModuleManager::autoUpdaterEnabled()
 void Misc::ModuleManager::initializeQmlInterface()
 {
     // Initialize modules
-    setSplashScreenMessage(tr("Initializing modules..."));
-    const auto csvExport = CSV::Export::getInstance();
-    const auto csvPlayer = CSV::Player::getInstance();
-    const auto ioManager = IO::Manager::getInstance();
-    const auto ioConsole = IO::Console::getInstance();
-    const auto updater = QSimpleUpdater::getInstance();
-    const auto jsonEditor = JSON::Editor::getInstance();
-    const auto mqttClient = MQTT::Client::getInstance();
-    const auto uiDashboard = UI::Dashboard::getInstance();
-    const auto jsonGenerator = JSON::Generator::getInstance();
-    const auto pluginsBridge = Plugins::Server::getInstance();
-    const auto miscUtilities = Misc::Utilities::getInstance();
-    const auto miscMacExtras = Misc::MacExtras::getInstance();
-    const auto miscTranslator = Misc::Translator::getInstance();
-    const auto ioSerial = IO::DataSources::Serial::getInstance();
-    const auto miscTimerEvents = Misc::TimerEvents::getInstance();
-    const auto ioNetwork = IO::DataSources::Network::getInstance();
-    const auto miscThemeManager = Misc::ThemeManager::getInstance();
+    auto csvExport = &CSV::Export::instance();
+    auto csvPlayer = &CSV::Player::instance();
+    auto ioManager = &IO::Manager::instance();
+    auto ioConsole = &IO::Console::instance();
+    auto mqttClient = &MQTT::Client::instance();
+    auto uiDashboard = &UI::Dashboard::instance();
+    auto projectModel = &Project::Model::instance();
+    auto ioSerial = &IO::Drivers::Serial::instance();
+    auto jsonGenerator = &JSON::Generator::instance();
+    auto pluginsBridge = &Plugins::Server::instance();
+    auto miscUtilities = &Misc::Utilities::instance();
+    auto miscMacExtras = &Misc::MacExtras::instance();
+    auto ioNetwork = &IO::Drivers::Network::instance();
+    auto miscTranslator = &Misc::Translator::instance();
+    auto miscTimerEvents = &Misc::TimerEvents::instance();
+    auto miscThemeManager = &Misc::ThemeManager::instance();
+    auto projectCodeEditor = &Project::CodeEditor::instance();
+    auto ioBluetoothLE = &IO::Drivers::BluetoothLE::instance();
+
+    // Initialize third-party modules
+    auto updater = QSimpleUpdater::getInstance();
 
     // Operating system flags
     bool isWin = false;
     bool isMac = false;
     bool isNix = false;
+    QString osName = tr("Unknown OS");
 #if defined(Q_OS_MAC)
     isMac = true;
+    osName = "macOS";
 #elif defined(Q_OS_WIN)
     isWin = true;
+    osName = "Windows";
+#elif defined(Q_OS_LINUX)
+    isNix = true;
+    osName = "GNU/Linux";
 #else
     isNix = true;
+    osName = "UNIX";
 #endif
 
     // Qt version QML flag
@@ -215,6 +210,7 @@ void Misc::ModuleManager::initializeQmlInterface()
     c->setContextProperty("Cpp_IsWin", isWin);
     c->setContextProperty("Cpp_IsMac", isMac);
     c->setContextProperty("Cpp_IsNix", isNix);
+    c->setContextProperty("Cpp_OSName", osName);
     c->setContextProperty("Cpp_Updater", updater);
     c->setContextProperty("Cpp_IO_Serial", ioSerial);
     c->setContextProperty("Cpp_CSV_Export", csvExport);
@@ -222,16 +218,18 @@ void Misc::ModuleManager::initializeQmlInterface()
     c->setContextProperty("Cpp_IO_Console", ioConsole);
     c->setContextProperty("Cpp_IO_Manager", ioManager);
     c->setContextProperty("Cpp_IO_Network", ioNetwork);
-    c->setContextProperty("Cpp_JSON_Editor", jsonEditor);
     c->setContextProperty("Cpp_MQTT_Client", mqttClient);
     c->setContextProperty("Cpp_UI_Dashboard", uiDashboard);
+    c->setContextProperty("Cpp_Project_Model", projectModel);
     c->setContextProperty("Cpp_JSON_Generator", jsonGenerator);
     c->setContextProperty("Cpp_Plugins_Bridge", pluginsBridge);
     c->setContextProperty("Cpp_Misc_MacExtras", miscMacExtras);
     c->setContextProperty("Cpp_Misc_Utilities", miscUtilities);
+    c->setContextProperty("Cpp_IO_Bluetooth_LE", ioBluetoothLE);
     c->setContextProperty("Cpp_ThemeManager", miscThemeManager);
     c->setContextProperty("Cpp_Misc_Translator", miscTranslator);
     c->setContextProperty("Cpp_Misc_TimerEvents", miscTimerEvents);
+    c->setContextProperty("Cpp_Project_CodeEditor", projectCodeEditor);
     c->setContextProperty("Cpp_UpdaterEnabled", autoUpdaterEnabled());
     c->setContextProperty("Cpp_ModuleManager", this);
 
@@ -243,33 +241,7 @@ void Misc::ModuleManager::initializeQmlInterface()
     c->setContextProperty("Cpp_AppOrganizationDomain", qApp->organizationDomain());
 
     // Load main.qml
-    setSplashScreenMessage(tr("Loading user interface..."));
     engine()->load(QUrl(QStringLiteral("qrc:/qml/main.qml")));
-    qApp->processEvents();
-
-    // Warning! Do not call setSplashScreenMessage() after loading QML user interface
-}
-
-/**
- * Hides the splash screen widget
- */
-void Misc::ModuleManager::hideSplashscreen()
-{
-    m_splash.hide();
-    m_splash.close();
-    qApp->processEvents();
-}
-
-/**
- * Changes the text displayed on the splash screen
- */
-void Misc::ModuleManager::setSplashScreenMessage(const QString &message)
-{
-    if (!message.isEmpty())
-    {
-        m_splash.showMessage(message, Qt::AlignBottom | Qt::AlignLeft, Qt::white);
-        qApp->processEvents();
-    }
 }
 
 /**
@@ -277,9 +249,13 @@ void Misc::ModuleManager::setSplashScreenMessage(const QString &message)
  */
 void Misc::ModuleManager::onQuit()
 {
-    Plugins::Server::getInstance()->removeConnection();
-    CSV::Export::getInstance()->closeFile();
-    CSV::Player::getInstance()->closeFile();
-    IO::Manager::getInstance()->disconnectDevice();
-    Misc::TimerEvents::getInstance()->stopTimers();
+    CSV::Export::instance().closeFile();
+    CSV::Player::instance().closeFile();
+    IO::Manager::instance().disconnectDriver();
+    Misc::TimerEvents::instance().stopTimers();
+    Plugins::Server::instance().removeConnection();
 }
+
+#ifdef SERIAL_STUDIO_INCLUDE_MOC
+#    include "moc_ModuleManager.cpp"
+#endif

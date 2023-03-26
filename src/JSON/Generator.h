@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021 Alex Spataru <https://github.com/alex-spataru>
+ * Copyright (c) 2020-2023 Alex Spataru <https://github.com/alex-spataru>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,45 +24,16 @@
 
 #include <QFile>
 #include <QObject>
-#include <QThread>
 #include <QSettings>
 #include <QJsonArray>
 #include <QJsonValue>
 #include <QJsonObject>
 #include <QJsonDocument>
 
-#include "Frame.h"
-#include "FrameInfo.h"
+#include <JSON/Frame.h>
 
 namespace JSON
 {
-/**
- * Generates a JSON document by combining the JSON map file and the received
- * data from the microcontroller device.
- *
- * This code is executed on another thread in order to avoid blocking the
- * user interface.
- */
-class JSONWorker : public QObject
-{
-    Q_OBJECT
-
-Q_SIGNALS:
-    void finished();
-    void jsonReady(const JFI_Object &info);
-
-public:
-    JSONWorker(const QByteArray &data, const quint64 frame, const QDateTime &time);
-
-public Q_SLOTS:
-    void process();
-
-private:
-    QDateTime m_time;
-    QByteArray m_data;
-    quint64 m_frame;
-};
-
 /**
  * @brief The Generator class
  *
@@ -99,61 +70,52 @@ class Generator : public QObject
                READ operationMode
                WRITE setOperationMode
                NOTIFY operationModeChanged)
-    Q_PROPERTY(bool processFramesInSeparateThread
-               READ processFramesInSeparateThread
-               WRITE setProcessFramesInSeparateThread
-               NOTIFY processFramesInSeparateThreadChanged)
     // clang-format on
 
 Q_SIGNALS:
     void jsonFileMapChanged();
     void operationModeChanged();
-    void jsonChanged(const JFI_Object &info);
-    void processFramesInSeparateThreadChanged();
+    void jsonChanged(const QJsonObject &json);
+
+private:
+    explicit Generator();
+    Generator(Generator &&) = delete;
+    Generator(const Generator &) = delete;
+    Generator &operator=(Generator &&) = delete;
+    Generator &operator=(const Generator &) = delete;
 
 public:
     enum OperationMode
     {
         kManual = 0x00,
-        kAutomatic = 0x01,
+        kAutomatic = 0x01
     };
     Q_ENUM(OperationMode)
 
-public:
-    static Generator *getInstance();
+    static Generator &instance();
 
-    QString jsonMapData() const;
+    QJsonObject &json();
     QString jsonMapFilename() const;
     QString jsonMapFilepath() const;
     OperationMode operationMode() const;
-    bool processFramesInSeparateThread() const;
 
 public Q_SLOTS:
     void loadJsonMap();
     void loadJsonMap(const QString &path);
-    void setProcessFramesInSeparateThread(const bool threaded);
     void setOperationMode(const JSON::Generator::OperationMode &mode);
-
-private:
-    Generator();
 
 public Q_SLOTS:
     void readSettings();
-    void loadJFI(const JFI_Object &object);
     void writeSettings(const QString &path);
-    void loadJSON(const QJsonDocument &json);
 
 private Q_SLOTS:
-    void reset();
     void readData(const QByteArray &data);
-    void processFrame(const QByteArray &data, const quint64 frame, const QDateTime &time);
 
 private:
     QFile m_jsonMap;
-    quint64 m_frameCount;
+    QJsonObject m_json;
     QSettings m_settings;
-    QString m_jsonMapData;
     OperationMode m_opMode;
-    bool m_processInSeparateThread;
+    QJsonParseError m_error;
 };
 }

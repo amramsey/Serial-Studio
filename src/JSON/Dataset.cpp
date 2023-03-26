@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021 Alex Spataru <https://github.com/alex-spataru>
+ * Copyright (c) 2020-2023 Alex Spataru <https://github.com/alex-spataru>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -20,15 +20,11 @@
  * THE SOFTWARE.
  */
 
-#include "Dataset.h"
-#include "Generator.h"
-#include "FrameInfo.h"
+#include <JSON/Dataset.h>
+#include <JSON/Generator.h>
 
-namespace JSON
-{
-Dataset::Dataset(QObject *parent)
-    : QObject(parent)
-    , m_fft(false)
+JSON::Dataset::Dataset()
+    : m_fft(false)
     , m_led(false)
     , m_log(false)
     , m_graph(false)
@@ -44,12 +40,10 @@ Dataset::Dataset(QObject *parent)
 {
 }
 
-Dataset::~Dataset() { }
-
 /**
  * @return @c true if the UI should generate a FFT plot of this dataset
  */
-bool Dataset::fft() const
+bool JSON::Dataset::fft() const
 {
     return m_fft;
 }
@@ -57,7 +51,7 @@ bool Dataset::fft() const
 /**
  * @return @c true if the UI should generate a LED of this dataset
  */
-bool Dataset::led() const
+bool JSON::Dataset::led() const
 {
     return m_led;
 }
@@ -65,15 +59,23 @@ bool Dataset::led() const
 /**
  * @return @c true if the UI should generate a logarithmic plot of this dataset
  */
-bool Dataset::log() const
+bool JSON::Dataset::log() const
 {
     return m_log;
 }
 
 /**
+ * @return the field index represented by the current dataset
+ */
+int JSON::Dataset::index() const
+{
+    return m_index;
+}
+
+/**
  * @return @c true if the UI should graph this dataset
  */
-bool Dataset::graph() const
+bool JSON::Dataset::graph() const
 {
     return m_graph;
 }
@@ -81,7 +83,7 @@ bool Dataset::graph() const
 /**
  * Returns the minimum value of the dataset
  */
-double Dataset::min() const
+double JSON::Dataset::min() const
 {
     return m_min;
 }
@@ -89,7 +91,7 @@ double Dataset::min() const
 /**
  * Returns the maximum value of the dataset
  */
-double Dataset::max() const
+double JSON::Dataset::max() const
 {
     return m_max;
 }
@@ -97,7 +99,7 @@ double Dataset::max() const
 /**
  * Returns the alarm level of the dataset
  */
-double Dataset::alarm() const
+double JSON::Dataset::alarm() const
 {
     return m_alarm;
 }
@@ -105,7 +107,7 @@ double Dataset::alarm() const
 /**
  * @return The title/description of this dataset
  */
-QString Dataset::title() const
+QString JSON::Dataset::title() const
 {
     return m_title;
 }
@@ -113,7 +115,7 @@ QString Dataset::title() const
 /**
  * @return The value/reading of this dataset
  */
-QString Dataset::value() const
+QString JSON::Dataset::value() const
 {
     return m_value;
 }
@@ -121,7 +123,7 @@ QString Dataset::value() const
 /**
  * @return The units of this dataset
  */
-QString Dataset::units() const
+QString JSON::Dataset::units() const
 {
     return m_units;
 }
@@ -129,7 +131,7 @@ QString Dataset::units() const
 /**
  * @return The widget value of this dataset
  */
-QString Dataset::widget() const
+QString JSON::Dataset::widget() const
 {
     return m_widget;
 }
@@ -137,7 +139,7 @@ QString Dataset::widget() const
 /**
  * Returns the maximum freq. for the FFT transform
  */
-int Dataset::fftSamples() const
+int JSON::Dataset::fftSamples() const
 {
     return qMax(1, m_fftSamples);
 }
@@ -145,7 +147,7 @@ int Dataset::fftSamples() const
 /**
  * Returns the JSON data that represents this widget
  */
-QJsonObject Dataset::jsonData() const
+QJsonObject JSON::Dataset::jsonData() const
 {
     return m_jsonData;
 }
@@ -156,43 +158,29 @@ QJsonObject Dataset::jsonData() const
  *
  * @return @c true on read success, @c false on failure
  */
-bool Dataset::read(const QJsonObject &object)
+bool JSON::Dataset::read(const QJsonObject &object)
 {
     if (!object.isEmpty())
     {
-        const auto fft = JFI_Value(object, "fft").toBool();
-        const auto led = JFI_Value(object, "led").toBool();
-        const auto log = JFI_Value(object, "log").toBool();
-        const auto min = JFI_Value(object, "min").toDouble();
-        const auto max = JFI_Value(object, "max").toDouble();
-        const auto alarm = JFI_Value(object, "alarm").toDouble();
-        const auto graph = JFI_Value(object, "graph", "g").toBool();
-        const auto title = JFI_Value(object, "title", "t").toString();
-        const auto value = JFI_Value(object, "value", "v").toString();
-        const auto units = JFI_Value(object, "units", "u").toString();
-        const auto widget = JFI_Value(object, "widget", "w").toString();
-        const auto fftSamples = JFI_Value(object, "fftSamples").toInt();
+        m_fft = object.value("fft").toBool();
+        m_led = object.value("led").toBool();
+        m_log = object.value("log").toBool();
+        m_min = object.value("min").toDouble();
+        m_max = object.value("max").toDouble();
+        m_index = object.value("index").toInt();
+        m_alarm = object.value("alarm").toDouble();
+        m_graph = object.value("graph").toBool();
+        m_title = object.value("title").toString();
+        m_value = object.value("value").toString();
+        m_units = object.value("units").toString();
+        m_widget = object.value("widget").toString();
+        m_fftSamples = object.value("fftSamples").toInt();
 
-        if (!value.isEmpty() && !title.isEmpty())
-        {
-            m_min = min;
-            m_max = max;
-            m_fft = fft;
-            m_led = led;
-            m_log = log;
-            m_graph = graph;
-            m_title = title;
-            m_units = units;
-            m_value = value;
-            m_alarm = alarm;
-            m_widget = widget;
-            m_jsonData = object;
-            m_fftSamples = fftSamples;
+        if (m_value.isEmpty())
+            m_value = "--.--";
 
-            return true;
-        }
+        return true;
     }
 
     return false;
-}
 }

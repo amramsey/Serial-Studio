@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021 Alex Spataru <https://github.com/alex-spataru>
+ * Copyright (c) 2020-2023 Alex Spataru <https://github.com/alex-spataru>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,8 +22,8 @@
 
 #pragma once
 
-#include <QTimer>
 #include <QObject>
+#include <QBasicTimer>
 
 namespace Misc
 {
@@ -32,41 +32,38 @@ namespace Misc
  *
  * The @c TimerEvents class implements periodic timers that are used to update
  * the user interface elements at a specific frequency.
- *
- * It is necessary to use this class in order to avoid overloading the computer when
- * incoming data is received at high frequencies. We do not want to re-generate the UI
- * with every received frame, because that would probably freeze the GUI thread. Instead,
- * we "register" all incoming frames and process these frames in regular intervals.
  */
 class TimerEvents : public QObject
 {
     // clang-format off
     Q_OBJECT
-    Q_PROPERTY(int highFreqTimeoutHz
-               READ highFreqTimeoutHz
-               WRITE setHighFreqTimeout
-               NOTIFY highFreqTimeoutChanged)
     // clang-format on
 
 Q_SIGNALS:
-    void lowFreqTimeout();
-    void highFreqTimeout();
-    void highFreqTimeoutChanged();
+    void timeout1Hz();
+    void timeout10Hz();
+    void timeout20Hz();
+
+private:
+    TimerEvents() {};
+    TimerEvents(TimerEvents &&) = delete;
+    TimerEvents(const TimerEvents &) = delete;
+    TimerEvents &operator=(TimerEvents &&) = delete;
+    TimerEvents &operator=(const TimerEvents &) = delete;
 
 public:
-    static TimerEvents *getInstance();
-    int highFreqTimeoutHz() const;
+    static TimerEvents &instance();
+
+protected:
+    void timerEvent(QTimerEvent *event) override;
 
 public Q_SLOTS:
     void stopTimers();
     void startTimers();
-    void setHighFreqTimeout(const int hz);
 
 private:
-    TimerEvents();
-
-private:
-    QTimer m_timerLowFreq;
-    QTimer m_timerHighFreq;
+    QBasicTimer m_timer1Hz;
+    QBasicTimer m_timer10Hz;
+    QBasicTimer m_timer20Hz;
 };
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021 Alex Spataru <https://github.com/alex-spataru>
+ * Copyright (c) 2020-2023 Alex Spataru <https://github.com/alex-spataru>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -20,12 +20,12 @@
  * THE SOFTWARE.
  */
 
-import QtQuick 2.12
-import QtQuick.Window 2.12
-import QtQuick.Layouts 1.12
-import QtQuick.Controls 2.12
+import QtQuick
+import QtQuick.Window
+import QtQuick.Layouts
+import QtQuick.Controls
+import Qt.labs.settings
 
-import Qt.labs.settings 1.0
 import "../FramelessWindow" as FramelessWindow
 
 FramelessWindow.CustomWindow {
@@ -39,12 +39,12 @@ FramelessWindow.CustomWindow {
     height: minimumHeight
     minimizeEnabled: false
     maximizeEnabled: false
-    extraFlags: Qt.WindowStaysOnTopHint
     titlebarText: Cpp_ThemeManager.text
     x: (Screen.desktopAvailableWidth - width) / 2
     y: (Screen.desktopAvailableHeight - height) / 2
     titlebarColor: Cpp_ThemeManager.dialogBackground
     backgroundColor: Cpp_ThemeManager.dialogBackground
+    extraFlags: Qt.Dialog | Qt.WindowCloseButtonHint | Qt.WindowTitleHint
     minimumWidth: column.implicitWidth + 4 * app.spacing + 2 * root.shadowMargin
     maximumWidth: column.implicitWidth + 4 * app.spacing + 2 * root.shadowMargin
     minimumHeight: column.implicitHeight + 4 * app.spacing + titlebar.height + 2 * root.shadowMargin
@@ -124,10 +124,10 @@ FramelessWindow.CustomWindow {
         Item {
             anchors.fill: parent
 
-            DragHandler {
-                grabPermissions: TapHandler.CanTakeOverFromAnything
-                onActiveChanged: {
-                    if (active)
+            MouseArea {
+                anchors.fill: parent
+                onPressedChanged: {
+                    if (pressed)
                         root.startSystemMove()
                 }
             }
@@ -160,36 +160,45 @@ FramelessWindow.CustomWindow {
                 }
 
                 ColumnLayout {
-                    spacing: 0
+                    spacing: app.spacing * 2
                     Layout.fillWidth: true
                     Layout.fillHeight: true
 
+                    Item {
+                        Layout.fillHeight: true
+                    }
+
                     Label {
                         id: title
+                        font.bold: true
+                        font.pixelSize: 16
                         Layout.fillWidth: true
-                        text: "<h3>" + qsTr("Support the development of %1!").arg(Cpp_AppName) + "</h3>"
+                        Layout.minimumHeight: font.pixelSize
+                        text: qsTr("Support the development of %1!").arg(Cpp_AppName)
                     }
 
                     Label {
                         Layout.fillWidth: true
+                        Layout.minimumHeight: font.pixelSize * 3
                         Layout.maximumWidth: title.implicitWidth
                         wrapMode: Label.WrapAtWordBoundaryOrAnywhere
                         text: qsTr("Serial Studio is free & open-source software supported by volunteers. " +
                                    "Consider donating to support development efforts :)")
                     }
 
-                    Item {
-                        height: app.spacing * 2
-                    }
-
                     Label {
                         opacity: 0.8
                         font.pixelSize: 12
                         Layout.fillWidth: true
+                        Layout.minimumHeight: font.pixelSize * 2
                         Layout.maximumWidth: title.implicitWidth
                         wrapMode: Label.WrapAtWordBoundaryOrAnywhere
                         color: Cpp_ThemeManager.highlightedTextAlternative
                         text: qsTr("You can also support this project by sharing it, reporting bugs and proposing new features!")
+                    }
+
+                    Item {
+                        Layout.fillHeight: true
                     }
                 }
             }

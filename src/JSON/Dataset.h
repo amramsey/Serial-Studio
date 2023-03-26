@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021 Alex Spataru <https://github.com/alex-spataru>
+ * Copyright (c) 2020-2023 Alex Spataru <https://github.com/alex-spataru>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -25,6 +25,11 @@
 #include <QObject>
 #include <QVariant>
 #include <QJsonObject>
+
+namespace Project
+{
+class Model;
+}
 
 namespace JSON
 {
@@ -62,15 +67,15 @@ namespace JSON
  * @note All of the dataset fields are optional, except the "value"
  *       field and the "title" field.
  */
-class Dataset : public QObject
+class Dataset
 {
 public:
-    Dataset(QObject *parent = Q_NULLPTR);
-    ~Dataset();
+    Dataset();
 
     bool fft() const;
     bool led() const;
     bool log() const;
+    int index() const;
     bool graph() const;
     double min() const;
     double max() const;
@@ -83,6 +88,7 @@ public:
     QJsonObject jsonData() const;
 
     bool read(const QJsonObject &object);
+    void setTitle(const QString &title) { m_title = title; }
 
 private:
     bool m_fft;
@@ -102,6 +108,7 @@ private:
     double m_min;
     double m_alarm;
     int m_fftSamples;
-    friend class Editor;
+
+    friend class Project::Model;
 };
 }

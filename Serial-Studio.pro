@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2020-2021 Alex Spataru <https://github.com/alex-spataru>
+# Copyright (c) 2020-2023 Alex Spataru <https://github.com/alex-spataru>
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -41,18 +41,16 @@ TEMPLATE = app                                           # Project template
 TARGET = serial-studio                                   # Set default target name
 CONFIG += qtquickcompiler                                # Pre-compile QML interface
 CONFIG += utf8_source                                    # Source code encoding
-
 QTPLUGIN += qsvg                                         # Fixes issues with windeployqt
 
 QT += xml
-QT += sql
 QT += svg
 QT += core
 QT += quick
 QT += widgets
+QT += bluetooth
 QT += serialport
 QT += printsupport
-QT += quickwidgets
 QT += quickcontrols2
 
 equals(QT_MAJOR_VERSION, 6) {
@@ -65,61 +63,27 @@ DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x050F00
 # Compiler options
 #-----------------------------------------------------------------------------------------
 
-*g++*: {
-    QMAKE_CXXFLAGS_RELEASE -= -O1
-    QMAKE_CXXFLAGS_RELEASE -= -O2
-    QMAKE_CXXFLAGS_RELEASE *= -O3
-    QMAKE_CXXFLAGS_RELEASE *= -Ofast
-    QMAKE_CXXFLAGS_RELEASE *= -flto
-}
-
-*clang*: {
-    QMAKE_CXXFLAGS_RELEASE -= -O1
-    QMAKE_CXXFLAGS_RELEASE -= -O2
-    QMAKE_CXXFLAGS_RELEASE *= -O3
-    QMAKE_CXXFLAGS_RELEASE *= -Ofast
-    QMAKE_CXXFLAGS_RELEASE *= -flto
-}
-
-*msvc*: {
-    QMAKE_CXXFLAGS *= -MP
-    QMAKE_CXXFLAGS_RELEASE -= /O
-    QMAKE_CXXFLAGS_RELEASE *= /O2
-    QMAKE_CXXFLAGS_RELEASE *= /GL
-
-    INCLUDEPATH += $$OUT_PWD
-    INCLUDEPATH += $$OUT_PWD/debug
-    INCLUDEPATH += $$OUT_PWD/release
-}
-
 CONFIG += c++11
 CONFIG += silent
 
-#-----------------------------------------------------------------------------------------
-# Unity build
-#-----------------------------------------------------------------------------------------
-
 CONFIG(release, debug|release) {
-    CONFIG += unity_build
-}
-
-CONFIG(unity_build) {
-    CONFIG  += ltcg                             # Enable linker optimization
-    DEFINES += UNITY_BUILD=1                    # Enable unity build
-    DEFINES += UNITY_BUILD_INCLUDE_QML=0        # Do not optimize QtQuick compiler cache
-    SOURCES += src/SingleCompilationUnit.cpp    # Include single compilation unit in code
+    CONFIG += ltcg
+    *msvc*: {
+        QMAKE_CXXFLAGS *= -MP
+        INCLUDEPATH += $$OUT_PWD
+        INCLUDEPATH += $$OUT_PWD/debug
+        INCLUDEPATH += $$OUT_PWD/release
+    }
 }
 
 #-----------------------------------------------------------------------------------------
 # Serial Studio compile-time settings
 #-----------------------------------------------------------------------------------------
 
+DEFINES += SERIAL_STUDIO_INCLUDE_MOC
+
 #DEFINES += DISABLE_QSU     # If enabled, QSimpleUpdater shall not be used by the app.
                             # This is the default behaviour for MinGW.
-
-DEFINES += LAZY_WIDGETS     # Compile-time option to reduce the CPU usage of the widgets.
-                            # If disabled, widgets shall update title, units, value, etc.
-                            # If enabled, widgets shall only update their value.
 
 #-----------------------------------------------------------------------------------------
 # Libraries
@@ -184,13 +148,13 @@ HEADERS += \
     src/DataTypes.h \
     src/IO/Checksum.h \
     src/IO/Console.h \
-    src/IO/DataSources/Network.h \
-    src/IO/DataSources/Serial.h \
+    src/IO/Drivers/BluetoothLE.h \
+    src/IO/Drivers/Network.h \
+    src/IO/Drivers/Serial.h \
+    src/IO/HAL_Driver.h \
     src/IO/Manager.h \
     src/JSON/Dataset.h \
-    src/JSON/Editor.h \
     src/JSON/Frame.h \
-    src/JSON/FrameInfo.h \
     src/JSON/Generator.h \
     src/JSON/Group.h \
     src/MQTT/Client.h \
@@ -201,38 +165,40 @@ HEADERS += \
     src/Misc/Translator.h \
     src/Misc/Utilities.h \
     src/Plugins/Server.h \
+    src/Project/CodeEditor.h \
+    src/Project/Model.h \
     src/UI/Dashboard.h \
-    src/UI/WidgetLoader.h \
-    src/Widgets/Accelerometer.h \
-    src/Widgets/Bar.h \
-    src/Widgets/Common/AnalogGauge.h \
-    src/Widgets/Common/AttitudeIndicator.h \
-    src/Widgets/Common/BaseWidget.h \
-    src/Widgets/Common/ElidedLabel.h \
-    src/Widgets/Common/KLed.h \
-    src/Widgets/Compass.h \
-    src/Widgets/DataGroup.h \
-    src/Widgets/FFTPlot.h \
-    src/Widgets/GPS.h \
-    src/Widgets/Gauge.h \
-    src/Widgets/Gyroscope.h \
-    src/Widgets/LEDPanel.h \
-    src/Widgets/MultiPlot.h \
-    src/Widgets/Plot.h \
-    src/Widgets/Terminal.h
+    src/UI/DashboardWidget.h \
+    src/UI/DeclarativeWidget.h \
+    src/UI/Widgets/Accelerometer.h \
+    src/UI/Widgets/Bar.h \
+    src/UI/Widgets/Common/AnalogGauge.h \
+    src/UI/Widgets/Common/AttitudeIndicator.h \
+    src/UI/Widgets/Common/BaseWidget.h \
+    src/UI/Widgets/Common/ElidedLabel.h \
+    src/UI/Widgets/Common/KLed.h \
+    src/UI/Widgets/Compass.h \
+    src/UI/Widgets/DataGroup.h \
+    src/UI/Widgets/FFTPlot.h \
+    src/UI/Widgets/GPS.h \
+    src/UI/Widgets/Gauge.h \
+    src/UI/Widgets/Gyroscope.h \
+    src/UI/Widgets/LEDPanel.h \
+    src/UI/Widgets/MultiPlot.h \
+    src/UI/Widgets/Plot.h \
+    src/UI/Widgets/Terminal.h
 
 SOURCES += \
     src/CSV/Export.cpp \
     src/CSV/Player.cpp \
     src/IO/Checksum.cpp \
     src/IO/Console.cpp \
-    src/IO/DataSources/Network.cpp \
-    src/IO/DataSources/Serial.cpp \
+    src/IO/Drivers/BluetoothLE.cpp \
+    src/IO/Drivers/Network.cpp \
+    src/IO/Drivers/Serial.cpp \
     src/IO/Manager.cpp \
     src/JSON/Dataset.cpp \
-    src/JSON/Editor.cpp \
     src/JSON/Frame.cpp \
-    src/JSON/FrameInfo.cpp \
     src/JSON/Generator.cpp \
     src/JSON/Group.cpp \
     src/MQTT/Client.cpp \
@@ -243,25 +209,28 @@ SOURCES += \
     src/Misc/Translator.cpp \
     src/Misc/Utilities.cpp \
     src/Plugins/Server.cpp \
+    src/Project/CodeEditor.cpp \
+    src/Project/Model.cpp \
     src/UI/Dashboard.cpp \
-    src/UI/WidgetLoader.cpp \
-    src/Widgets/Accelerometer.cpp \
-    src/Widgets/Bar.cpp \
-    src/Widgets/Common/AnalogGauge.cpp \
-    src/Widgets/Common/AttitudeIndicator.cpp \
-    src/Widgets/Common/BaseWidget.cpp \
-    src/Widgets/Common/ElidedLabel.cpp \
-    src/Widgets/Common/KLed.cpp \
-    src/Widgets/Compass.cpp \
-    src/Widgets/DataGroup.cpp \
-    src/Widgets/FFTPlot.cpp \
-    src/Widgets/GPS.cpp \
-    src/Widgets/Gauge.cpp \
-    src/Widgets/Gyroscope.cpp \
-    src/Widgets/LEDPanel.cpp \
-    src/Widgets/MultiPlot.cpp \
-    src/Widgets/Plot.cpp \
-    src/Widgets/Terminal.cpp \
+    src/UI/DashboardWidget.cpp \
+    src/UI/DeclarativeWidget.cpp \
+    src/UI/Widgets/Accelerometer.cpp \
+    src/UI/Widgets/Bar.cpp \
+    src/UI/Widgets/Common/AnalogGauge.cpp \
+    src/UI/Widgets/Common/AttitudeIndicator.cpp \
+    src/UI/Widgets/Common/BaseWidget.cpp \
+    src/UI/Widgets/Common/ElidedLabel.cpp \
+    src/UI/Widgets/Common/KLed.cpp \
+    src/UI/Widgets/Compass.cpp \
+    src/UI/Widgets/DataGroup.cpp \
+    src/UI/Widgets/FFTPlot.cpp \
+    src/UI/Widgets/GPS.cpp \
+    src/UI/Widgets/Gauge.cpp \
+    src/UI/Widgets/Gyroscope.cpp \
+    src/UI/Widgets/LEDPanel.cpp \
+    src/UI/Widgets/MultiPlot.cpp \
+    src/UI/Widgets/Plot.cpp \
+    src/UI/Widgets/Terminal.cpp \
     src/main.cpp
 
 #-----------------------------------------------------------------------------------------
@@ -269,47 +238,16 @@ SOURCES += \
 #-----------------------------------------------------------------------------------------
 
 DISTFILES += \
-    assets/qml/Dashboard/DashboardTitle.qml \
-    assets/qml/Dashboard/ViewOptions.qml \
-    assets/qml/Dashboard/ViewOptionsDelegate.qml \
-    assets/qml/Dashboard/WidgetDelegate.qml \
-    assets/qml/Dashboard/WidgetGrid.qml \
-    assets/qml/Dashboard/WidgetModel.qml \
-    assets/qml/FramelessWindow/CustomWindow.qml \
-    assets/qml/FramelessWindow/ResizeHandles.qml \
-    assets/qml/FramelessWindow/Titlebar.qml \
-    assets/qml/FramelessWindow/WindowButton.qml \
-    assets/qml/FramelessWindow/WindowButtonMacOS.qml \
-    assets/qml/JsonEditor/Footer.qml \
-    assets/qml/JsonEditor/GroupEditor.qml \
-    assets/qml/JsonEditor/Header.qml \
-    assets/qml/JsonEditor/JsonDatasetDelegate.qml \
-    assets/qml/JsonEditor/JsonGroupDelegate.qml \
-    assets/qml/JsonEditor/TreeView.qml \
-    assets/qml/Panes/Console.qml \
-    assets/qml/Panes/Dashboard.qml \
-    assets/qml/Panes/Setup.qml \
-    assets/qml/Panes/SetupPanes/MQTT.qml \
-    assets/qml/Panes/SetupPanes/Network.qml \
-    assets/qml/Panes/SetupPanes/Serial.qml \
-    assets/qml/Panes/SetupPanes/Settings.qml \
-    assets/qml/Panes/Toolbar.qml \
-    assets/qml/PlatformDependent/DecentMenuItem.qml \
-    assets/qml/PlatformDependent/Menubar.qml \
-    assets/qml/PlatformDependent/MenubarMacOS.qml \
-    assets/qml/Widgets/Icon.qml \
-    assets/qml/Widgets/JSONDropArea.qml \
-    assets/qml/Widgets/Shadow.qml \
-    assets/qml/Widgets/Terminal.qml \
-    assets/qml/Widgets/Window.qml \
-    assets/qml/Windows/About.qml \
-    assets/qml/Windows/Acknowledgements.qml \
-    assets/qml/Windows/CsvPlayer.qml \
-    assets/qml/Windows/Donate.qml \
-    assets/qml/Windows/JsonEditor.qml \
-    assets/qml/Windows/MQTTConfiguration.qml \
-    assets/qml/Windows/MainWindow.qml \
-    assets/qml/main.qml
+    assets/qml/*.qml \
+    assets/qml/Panes/*.qml \
+    assets/qml/Widgets/*.qml \
+    assets/qml/Windows/*.qml \
+    assets/qml/Dashboard/*.qml \
+    assets/qml/ProjectEditor/*.qml \
+    assets/qml/FramelessWindow/*.qml \
+    assets/qml/Panes/SetupPanes/*.qml \
+    assets/qml/PlatformDependent/*.qml \
+    assets/qml/Panes/SetupPanes/Devices/*.qml \
 
 #-----------------------------------------------------------------------------------------
 # Deploy files

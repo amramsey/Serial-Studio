@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021 Alex Spataru <https://github.com/alex-spataru>
+ * Copyright (c) 2020-2023 Alex Spataru <https://github.com/alex-spataru>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -20,9 +20,9 @@
  * THE SOFTWARE.
  */
 
-import QtQuick 2.12
-import QtQuick.Layouts 1.12
-import QtQuick.Controls 2.12
+import QtQuick
+import QtQuick.Layouts
+import QtQuick.Controls
 
 Page {
     id: root
@@ -56,12 +56,6 @@ Page {
     signal headerDoubleClicked()
 
     //
-    // Animations
-    //
-    Behavior on Layout.preferredWidth {NumberAnimation{}}
-    Behavior on Layout.preferredHeight {NumberAnimation{}}
-
-    //
     // Layout properties
     //
     visible: opacity > 0
@@ -76,6 +70,15 @@ Page {
         color: root.backgroundColor
         border.width: root.borderWidth
         border.color: root.gradientColor1
+
+        Rectangle {
+            border.width: 1
+            color: "transparent"
+            anchors.fill: parent
+            anchors.topMargin: header.height
+            anchors.margins: root.borderWidth
+            border.color: Cpp_ThemeManager.border
+        }
     }
 
     //
@@ -145,6 +148,7 @@ Page {
                 text: root.title
                 Layout.fillWidth: true
                 color: root.titleColor
+                elide: Label.ElideRight
                 Layout.alignment: Qt.AlignVCenter
                 font.pixelSize: root.headerHeight * 14 / 32
                 horizontalAlignment: root.showIcon ? Label.AlignLeft : Label.AlignHCenter

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021 Alex Spataru <https://github.com/alex-spataru>
+ * Copyright (c) 2020-2023 Alex Spataru <https://github.com/alex-spataru>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -26,8 +26,6 @@
 #include <QMessageBox>
 #include <QApplication>
 
-#include "AppInfo.h"
-
 namespace Misc
 {
 /**
@@ -43,7 +41,7 @@ class Utilities : public QObject
 
 public:
     // clang-format off
-    static Utilities* getInstance();
+    static Utilities &instance();
     static void rebootApplication();
     Q_INVOKABLE bool askAutomaticUpdates();
     static int showMessageBox(const QString &text, 

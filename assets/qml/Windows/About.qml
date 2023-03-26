@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021 Alex Spataru <https://github.com/alex-spataru>
+ * Copyright (c) 2020-2023 Alex Spataru <https://github.com/alex-spataru>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -20,10 +20,10 @@
  * THE SOFTWARE.
  */
 
-import QtQuick 2.12
-import QtQuick.Window 2.12
-import QtQuick.Layouts 1.12
-import QtQuick.Controls 2.12
+import QtQuick
+import QtQuick.Window
+import QtQuick.Layouts
+import QtQuick.Controls
 
 import "../FramelessWindow" as FramelessWindow
 
@@ -41,9 +41,9 @@ FramelessWindow.CustomWindow {
     title: qsTr("About")
     width: minimumWidth
     height: minimumHeight
-    extraFlags: Qt.WindowStaysOnTopHint
     x: (Screen.desktopAvailableWidth - width) / 2
     y: (Screen.desktopAvailableHeight - height) / 2
+    extraFlags: Qt.Dialog | Qt.WindowCloseButtonHint | Qt.WindowTitleHint
     minimumWidth: column.implicitWidth + 4 * app.spacing + 2 * root.shadowMargin
     maximumWidth: column.implicitWidth + 4 * app.spacing + 2 * root.shadowMargin
     minimumHeight: column.implicitHeight + 4 * app.spacing + titlebar.height + 2 * root.shadowMargin
@@ -94,10 +94,10 @@ FramelessWindow.CustomWindow {
         Item {
             anchors.fill: parent
 
-            DragHandler {
-                grabPermissions: TapHandler.CanTakeOverFromAnything
-                onActiveChanged: {
-                    if (active)
+            MouseArea {
+                anchors.fill: parent
+                onPressedChanged: {
+                    if (pressed)
                         root.startSystemMove()
                 }
             }
@@ -116,11 +116,16 @@ FramelessWindow.CustomWindow {
                 Layout.fillWidth: true
 
                 Image {
-                    width: 96
-                    height: 96
-                    source: "qrc:/images/icon.svg"
+                    width: 128
+                    height: 128
                     Layout.alignment: Qt.AlignVCenter
                     sourceSize: Qt.size(width, height)
+                    source: {
+                        if (Screen.pixelDensity >= 2)
+                            return "qrc:/images/icon@2x.png"
+
+                        return "qrc:/images/icon@1x.png"
+                    }
                 }
 
                 ColumnLayout {
@@ -145,7 +150,7 @@ FramelessWindow.CustomWindow {
             Label {
                 opacity: 0.8
                 Layout.fillWidth: true
-                Layout.maximumWidth: 288
+                Layout.maximumWidth: 320
                 wrapMode: Label.WrapAtWordBoundaryOrAnywhere
                 text: qsTr("Copyright © 2020-%1 %2, released under the MIT License.").arg(root.year).arg(Cpp_AppOrganization)
             }
@@ -154,7 +159,7 @@ FramelessWindow.CustomWindow {
                 opacity: 0.8
                 font.pixelSize: 12
                 Layout.fillWidth: true
-                Layout.maximumWidth: 288
+                Layout.maximumWidth: 320
                 wrapMode: Label.WrapAtWordBoundaryOrAnywhere
                 color: Cpp_ThemeManager.highlightedTextAlternative
                 text: qsTr("The program is provided AS IS with NO WARRANTY OF ANY KIND, INCLUDING THE WARRANTY OF DESIGN, MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.")

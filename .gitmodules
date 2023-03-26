@@ -9,4 +9,4 @@
 	url = https://github.com/jothepro/doxygen-awesome-css.git
 [submodule "libs/qmqtt"]
 	path = libs/qmqtt
-	url = https://github.com/emqx/qmqtt
+	url = https://github.com/alex-spataru/qmqtt

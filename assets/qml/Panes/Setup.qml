@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021 Alex Spataru <https://github.com/alex-spataru>
+ * Copyright (c) 2020-2023 Alex Spataru <https://github.com/alex-spataru>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -20,11 +20,10 @@
  * THE SOFTWARE.
  */
 
-import QtQuick 2.12
-import QtQuick.Layouts 1.12
-import QtQuick.Controls 2.12
-
-import Qt.labs.settings 1.0
+import QtQuick
+import QtQuick.Layouts
+import QtQuick.Controls
+import Qt.labs.settings
 
 import "../Widgets" as Widgets
 import "SetupPanes" as SetupPanes
@@ -72,26 +71,6 @@ Item {
         property alias csvExport: csvLogging.checked
 
         //
-        // Serial settings
-        //
-        property alias parity: serial.parity
-        property alias baudRate: serial.baudRate
-        property alias dataBits: serial.dataBits
-        property alias stopBits: serial.stopBits
-        property alias flowControl: serial.flowControl
-        property alias autoReconnect: serial.autoReconnect
-
-        //
-        // Network settings
-        //
-        property alias address: network.address
-        property alias tcpPort: network.tcpPort
-        property alias socketType: network.socketType
-        property alias udpLocalPort: network.udpLocalPort
-        property alias udpRemotePort: network.udpRemotePort
-        property alias udpMulticastEnabled: network.udpMulticastEnabled
-
-        //
         // MQTT settings
         //
         property alias mqttHost: mqtt.host
@@ -107,10 +86,7 @@ Item {
         //
         property alias language: settings.language
         property alias tcpPlugins: settings.tcpPlugins
-        property alias endSequence: settings.endSequence
-        property alias startSequence: settings.startSequence
-        property alias separatorSequence: settings.separatorSequence
-        property alias multithreadedFrameProcessing: settings.multithreadedFrameProcessing
+        property alias windowShadows: settings.windowShadows
     }
 
     //
@@ -125,18 +101,9 @@ Item {
     }
 
     //
-    // Window shadow (must go before window declaration
-    // to avoid blurry artifacts & glitches).
-    //
-    Widgets.Shadow {
-        anchors.fill: window
-    }
-
-    //
     // Window
     //
     Widgets.Window {
-        id: window
         gradient: true
         title: qsTr("Setup")
         anchors.fill: parent
@@ -254,19 +221,9 @@ Item {
                 id: tab
                 Layout.fillWidth: true
                 Layout.maximumWidth: root.maxItemWidth
-                onCurrentIndexChanged: {
-                    if (currentIndex < 2 && currentIndex !== Cpp_IO_Manager.dataSource)
-                        Cpp_IO_Manager.dataSource = currentIndex
-                }
 
                 TabButton {
-                    text: qsTr("Serial")
-                    height: tab.height + 3
-                    width: implicitWidth + 2 * app.spacing
-                }
-
-                TabButton {
-                    text: qsTr("Network")
+                    text: qsTr("Device")
                     height: tab.height + 3
                     width: implicitWidth + 2 * app.spacing
                 }
@@ -291,55 +248,14 @@ Item {
                 id: stack
                 clip: true
                 Layout.fillWidth: true
-                Layout.fillHeight: false
+                Layout.fillHeight: true
                 currentIndex: tab.currentIndex
                 Layout.topMargin: -parent.spacing - 1
-                Layout.minimumHeight: implicitHeight
-                Layout.maximumHeight: implicitHeight
-                Layout.preferredHeight: implicitHeight
-                onCurrentIndexChanged: updateHeight()
-                Component.onCompleted: updateHeight()
 
-                function updateHeight() {
-                    stack.implicitHeight = 0
-
-                    switch (currentIndex) {
-                    case 0:
-                        stack.implicitHeight = serial.implicitHeight
-                        break
-                    case 1:
-                        stack.implicitHeight = network.implicitHeight
-                        break
-                    case 2:
-                        stack.implicitHeight = mqtt.implicitHeight
-                        break
-                    case 3:
-                        stack.implicitHeight = settings.implicitHeight
-                        break
-                    default:
-                        stack.implicitHeight = 0
-                        break
-                    }
-                }
-
-                SetupPanes.Serial {
-                    id: serial
-                    background: TextField {
-                        enabled: false
-                        palette.base: Cpp_ThemeManager.setupPanelBackground
-                    }
-                }
-
-                SetupPanes.Network {
-                    id: network
-                    onUiChanged: timer.start()
-
-                    Timer {
-                        id: timer
-                        interval: 50
-                        onTriggered: stack.updateHeight()
-                    }
-
+                SetupPanes.Hardware {
+                    id: hardware
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
                     background: TextField {
                         enabled: false
                         palette.base: Cpp_ThemeManager.setupPanelBackground
@@ -348,6 +264,8 @@ Item {
 
                 SetupPanes.MQTT {
                     id: mqtt
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
                     background: TextField {
                         enabled: false
                         palette.base: Cpp_ThemeManager.setupPanelBackground
@@ -356,18 +274,13 @@ Item {
 
                 SetupPanes.Settings {
                     id: settings
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
                     background: TextField {
                         enabled: false
                         palette.base: Cpp_ThemeManager.setupPanelBackground
                     }
                 }
-            }
-
-            //
-            // Vertical spacer
-            //
-            Item {
-                Layout.fillHeight: true
             }
         }
     }
